@@ -12,7 +12,7 @@ export default function NavBar({ onLogout }) {
       sx={{
         background: 'rgba(255,255,255,0.85)',
         backdropFilter: 'blur(10px)',
-        boxShadow: '0px 8px 24px rgba(0,0,0,0.2)',
+        // boxShadow: '0px 8px 24px rgba(0,0,0,0.2)',
         marginBottom: '2rem'
       }}
     >
