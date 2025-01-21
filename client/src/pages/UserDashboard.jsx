@@ -47,10 +47,7 @@ const iconMapping = {
 
 const CustomControl = (props) => {
   const { data, handleChange, path, errors, visible, label } = props;
-  
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
   const onChange = (ev) => handleChange(path, ev.target.value);
   const displayError = errors && !errors.includes('is a required property') ? errors : '';
@@ -78,8 +75,7 @@ const CustomControl = (props) => {
 const customTester = rankWith(4, isStringControl);
 const CustomRenderer = withJsonFormsControlProps(CustomControl);
 
-// JSON Schema
-const schema = {
+ const schema = {
   type: "object",
   properties: {
     name: { type: "string", pattern: "^[A-Za-z\\s]+$" },
@@ -90,8 +86,7 @@ const schema = {
   required: ["name", "companyName", "email", "phone"]
 };
 
-// UI Schema
-const uischema = {
+ const uischema = {
   type: "VerticalLayout",
   elements: [
     { type: "Control", scope: "#/properties/name" },
@@ -115,15 +110,9 @@ export default function UserDashboard() {
   const [editing, setEditing] = useState(false);
   const [currentRecordId, setCurrentRecordId] = useState(null);
   
-  const [modal, setModal] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
+  const [modal, setModal] = useState({ open: false, message: '', severity: 'success' });
 
-  const handleCloseModal = () => {
-    setModal({ ...modal, open: false });
-  };
+  const handleCloseModal = () => setModal({ ...modal, open: false });
 
   const handleSubmit = async () => {
     const nameRegex = /^[A-Za-z\s]+$/;
@@ -220,10 +209,10 @@ export default function UserDashboard() {
                 padding: '1.2rem', 
                 borderRadius: '5px', 
                 background: 'rgba(255,255,255,0.85)',
-                border: '2px solid rgba(0,0,0,0.1)'  // Added border for visibility
+                border: '2px solid rgba(0,0,0,0.1)'  
               }}
             >
-              {/* Optionally uncomment for heading */}
+              {/* User Details Heading */}
               {/* <Typography variant="h5" gutterBottom sx={{ color: '#3f51b5', fontWeight: 'bold' }}>
                 User Details
               </Typography> */}
@@ -286,10 +275,9 @@ export default function UserDashboard() {
               sx={{ 
                 padding: '0.5rem', 
                 borderRadius: '4px',
-                border: '1px solid rgba(0,0,0,0.1)'  // Added border for visibility
+                border: '1px solid rgba(0,0,0,0.1)'  
               }}
             >
-              {/* Header Row: Fixed */}
               <Box 
                 display="flex" 
                 justifyContent="space-between" 
@@ -316,7 +304,6 @@ export default function UserDashboard() {
                   </IconButton>
                 </Box>
               </Box>
-
               <TableContainer sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
@@ -350,7 +337,6 @@ export default function UserDashboard() {
         </Box>
       </Box>
 
-      {/* Modal for Notifications */}
       <Dialog 
         open={modal.open} 
         onClose={handleCloseModal}
@@ -368,7 +354,6 @@ export default function UserDashboard() {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Container>
   );
 }

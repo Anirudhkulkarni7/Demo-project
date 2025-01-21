@@ -1,4 +1,3 @@
-// client/src/components/NavBar.jsx
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button } from '@mui/material';
 import { motion } from 'framer-motion';
@@ -12,12 +11,10 @@ export default function NavBar({ onLogout }) {
       sx={{
         background: 'rgba(255,255,255,0.85)',
         backdropFilter: 'blur(10px)',
-        // boxShadow: '0px 8px 24px rgba(0,0,0,0.2)',
         marginBottom: '2rem'
       }}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        {/* Logo or App Name */}
         <motion.div
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -36,8 +33,6 @@ export default function NavBar({ onLogout }) {
             Contacts
           </Typography>
         </motion.div>
-
-        {/* Logout Button */}
         <motion.div
           initial={{ x: 50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

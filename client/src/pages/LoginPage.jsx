@@ -1,4 +1,3 @@
-// client/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { TextField, Button, Typography, Container, Paper } from '@mui/material';
 import { motion } from 'framer-motion';
@@ -18,8 +17,6 @@ export default function LoginPage({ onLogin }) {
       });
       onLogin('user');
       localStorage.setItem('userRole', 'user');  
-      
-      // Replace the history entry so back button does not return to login
       navigate('/user', { replace: true });
     } catch (error) {
       alert(error.response?.data?.message || 'Login failed');
@@ -124,7 +121,6 @@ export default function LoginPage({ onLogin }) {
               Sign In
             </Button>
           </motion.div>
-          
         </Paper>
       </motion.div>
     </Container>

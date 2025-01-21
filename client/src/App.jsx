@@ -1,4 +1,3 @@
-// client/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
@@ -9,7 +8,6 @@ function App() {
   const [role, setRole] = useState(null);
   const navigate = useNavigate();
 
-  // Load role from localStorage on mount
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole');
     if (storedRole) {
@@ -29,12 +27,10 @@ function App() {
 
   return (
     <>
-      {/* Render NavBar only when a user is logged in */}
       {role && <NavBar onLogout={handleLogout} />}
       <Routes>
         <Route path="/" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/user" element={<UserDashboard />} />
-        {/* Fallback route */}
         <Route path="*" element={<LoginPage onLogin={handleLogin} />} />
       </Routes>
     </>
