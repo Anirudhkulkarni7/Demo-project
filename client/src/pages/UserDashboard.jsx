@@ -285,7 +285,8 @@ export default function UserDashboard() {
                 mb={2} 
                 sx={{ position: 'sticky', top: 0, background: 'inherit', zIndex: 1, pb: 1 }}
               >
-                <Typography variant="h6">Search Results</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Search Results</Typography>
                 <Box>
                   <Button 
                     size="small" 

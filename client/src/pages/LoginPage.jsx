@@ -1,128 +1,179 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Container, Paper } from '@mui/material';
-import { motion } from 'framer-motion';
+import {
+  TextField,
+  Button,
+  Typography,
+  Container,
+  Paper,
+  IconButton,
+  InputAdornment,
+  Box,
+  Snackbar,
+  Alert
+} from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';   
+import { useNavigate } from 'react-router-dom';
+
+import logo from '../assets/logo.png';
 
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('error');
+
   const navigate = useNavigate();
 
+  const toggleShowPassword = () => setShowPassword(!showPassword);
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
   const handleSubmit = async () => {
+    // Simple front-end validation
+    if (!username || !password) {
+      setSnackbarMessage('Please fill in all details');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
     try {
-      await axios.post('http://localhost:4000/api/auth/login', {
-        username,
-        password
-      });
+      await axios.post('http://localhost:4000/api/auth/login', { username, password });
       onLogin('user');
-      localStorage.setItem('userRole', 'user');  
+      localStorage.setItem('userRole', 'user');
       navigate('/user', { replace: true });
     } catch (error) {
-      alert(error.response?.data?.message || 'Login failed');
+      setSnackbarMessage(error.response?.data?.message || 'Login failed');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
 
   return (
     <Container
-      maxWidth="sm"
+      maxWidth={false}
       sx={{
         height: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        backgroundColor: '#f5f5f5',
       }}
     >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        style={{ width: '90%' }}
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        width="70%"
+        height="500px"
+        sx={{
+          background: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+          overflow: 'hidden',
+        }}
       >
-        <Paper
-          elevation={6}
+        {/* Left Section: Logo */}
+        <Box
           sx={{
-            padding: '2rem',
-            borderRadius: '16px',
-            background: 'rgba(255,255,255,0.85)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0px 8px 24px rgba(0,0,0,0.2)'
+            width: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <motion.div
-            initial={{ y: -20 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.5 }}
+          <img src={logo} alt="Logo" style={{ width: '70%', maxWidth: '300px' }} />
+        </Box>
+
+        {/* Right Section: Login Form */}
+        <Box
+          sx={{
+            width: '50%',
+            padding: '3rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <Typography
+            variant="h4"
+            gutterBottom
+            sx={{ color: '#3f51b5', fontWeight: 'bold', marginBottom: '1rem' }}
           >
-            <Typography
-              variant="h4"
-              align="center"
-              gutterBottom
-              sx={{ color: '#3f51b5', fontWeight: 'bold' }}
-            >
-              Login
-            </Typography>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
+            Login
+          </Typography>
+
+          <TextField
+            label="Username"
+            fullWidth
+            margin="normal"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            variant="outlined"
+            sx={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '4px' }}
+          />
+
+          <TextField
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            fullWidth
+            margin="normal"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            variant="outlined"
+            sx={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '4px' }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={toggleShowPassword} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            sx={{
+              width: '30%',
+              marginTop: '1.5rem',
+              padding: '0.75rem',
+              borderRadius: '4px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)',
+              boxShadow: '0px 4px 20px rgba(33,203,243,0.3)',
+              marginRight: 'auto',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)',
+              },
+            }}
           >
-            <TextField
-              label="Username"
-              fullWidth
-              margin="normal"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              variant="outlined"
-              sx={{
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                borderRadius: '4px'
-              }}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              fullWidth
-              margin="normal"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              variant="outlined"
-              sx={{
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                borderRadius: '4px'
-              }}
-            />
-          </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              onClick={handleSubmit}
-              sx={{
-                width: '30%',
-                marginTop: '1rem',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                background: 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)',
-                boxShadow: '0px 4px 20px rgba(33,203,243,0.3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)'
-                }
-              }}
-            >
-              Sign In
-            </Button>
-          </motion.div>
-        </Paper>
-      </motion.div>
+            Sign In
+          </Button>
+        </Box>
+      </Box>
+
+       <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
