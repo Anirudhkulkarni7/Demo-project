@@ -33,7 +33,7 @@ export default function NavBar({ onLogout }) {
               fontWeight: 'bold'
             }}
           >
-            User Form
+            Contacts
           </Typography>
         </motion.div>
 
