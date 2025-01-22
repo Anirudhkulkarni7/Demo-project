@@ -50,5 +50,27 @@ exports.updateRecord = async (req, res) => {
 };
 
 
+exports.deleteRecord = async (req, res) => {
+  try {
+    const record = await Record.findByIdAndDelete(req.params.id);
+    if (!record) {
+      return res.status(404).json({ message: 'Record not found' });
+    }
+    return res.json({ message: 'Record deleted successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+
+exports.deleteAllRecords = async (req, res) => {
+  try {
+    await Record.deleteMany({});
+    return res.json({ message: 'All records deleted successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 
  
