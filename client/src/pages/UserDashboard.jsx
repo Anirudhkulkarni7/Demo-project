@@ -273,12 +273,14 @@ export default function UserDashboard() {
             <Paper 
               elevation={6}
               sx={{ 
+                marginTop: '-1rem',
                 padding: '0.5rem', 
                 borderRadius: '4px',
                 border: '1px solid rgba(0,0,0,0.1)'  
               }}
             >
               <Box 
+                
                 display="flex" 
                 justifyContent="space-between" 
                 alignItems="center" 
@@ -318,7 +320,10 @@ export default function UserDashboard() {
                   </TableHead>
                   <TableBody>
                     {searchResults.map((record, idx) => (
-                      <TableRow key={idx}>
+                      <TableRow
+                            key={idx}
+                            sx={{ height: '10px' }} // Adjusted row height here
+                      >                        
                         <TableCell>{record.name}</TableCell>
                         <TableCell>{record.companyName}</TableCell>
                         <TableCell>{record.email}</TableCell>

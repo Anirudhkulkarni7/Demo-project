@@ -146,7 +146,7 @@ export default function LoginPage({ onLogin }) {
             color="primary"
             onClick={handleSubmit}
             sx={{
-              width: '30%',
+              width: '20%',
               marginTop: '1.5rem',
               padding: '0.75rem',
               borderRadius: '4px',
@@ -154,6 +154,8 @@ export default function LoginPage({ onLogin }) {
               background: 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)',
               boxShadow: '0px 4px 20px rgba(33,203,243,0.3)',
               marginRight: 'auto',
+              textTransform: 'none',
+
               '&:hover': {
                 background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)',
               },

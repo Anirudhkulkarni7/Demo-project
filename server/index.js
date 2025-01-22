@@ -9,8 +9,7 @@ const recordRoutes = require('./routes/recordRoutes');
 
 const app = express();
 
-// Enable CORS (allow requests from your frontend origin)
-app.use(cors({
+ app.use(cors({
   // origin: 'http://localhost:5173',  
   origin: '*',
 
