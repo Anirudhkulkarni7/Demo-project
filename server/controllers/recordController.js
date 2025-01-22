@@ -1,8 +1,21 @@
 // server/controllers/recordController.js
 const Record = require('../models/Record');
 
-exports.createRecord = async (req, res) => {
+ exports.createRecord = async (req, res) => {
   try {
+    // 1) Check if name is already taken
+    const existingName = await Record.findOne({ name: req.body.name });
+    if (existingName) {
+      return res.status(400).json({ message: "Name is already in use." });
+    }
+
+    // 2) Check if email is already taken
+    const existingEmail = await Record.findOne({ email: req.body.email });
+    if (existingEmail) {
+      return res.status(400).json({ message: "Email is already in use." });
+    }
+
+    // If both checks pass, create the new record
     const record = new Record(req.body);
     await record.save();
     res.status(201).json(record);
@@ -11,6 +24,7 @@ exports.createRecord = async (req, res) => {
   }
 };
 
+// GET all records
 exports.getAllRecords = async (req, res) => {
   try {
     const records = await Record.find({});
@@ -20,6 +34,7 @@ exports.getAllRecords = async (req, res) => {
   }
 };
 
+// SEARCH records by any combination of fields
 exports.searchRecords = async (req, res) => {
   try {
     const query = {};
@@ -35,8 +50,27 @@ exports.searchRecords = async (req, res) => {
   }
 };
 
+// UPDATE record (also check unique name and unique email)
 exports.updateRecord = async (req, res) => {
   try {
+    // 1) Check if name is already taken by another record
+    const existingName = await Record.findOne({
+      name: req.body.name,
+      _id: { $ne: req.params.id }   
+    });
+    if (existingName) {
+      return res.status(400).json({ message: "Name is already in use." });
+    }
+
+    // 2) Check if email is already taken by another record
+    const existingEmail = await Record.findOne({
+      email: req.body.email,
+      _id: { $ne: req.params.id }
+    });
+    if (existingEmail) {
+      return res.status(400).json({ message: "Email is already in use." });
+    }
+
     const record = await Record.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -49,7 +83,7 @@ exports.updateRecord = async (req, res) => {
   }
 };
 
-
+// DELETE single record
 exports.deleteRecord = async (req, res) => {
   try {
     const record = await Record.findByIdAndDelete(req.params.id);
@@ -62,7 +96,7 @@ exports.deleteRecord = async (req, res) => {
   }
 };
 
-
+// DELETE ALL records
 exports.deleteAllRecords = async (req, res) => {
   try {
     await Record.deleteMany({});
@@ -71,6 +105,3 @@ exports.deleteAllRecords = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-
-
- 

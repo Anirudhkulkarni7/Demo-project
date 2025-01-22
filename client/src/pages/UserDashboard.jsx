@@ -22,12 +22,14 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import * as XLSX from 'xlsx'; 
+import * as XLSX from 'xlsx';
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
+import DownloadIcon from '@mui/icons-material/Download';
+import PeopleIcon from '@mui/icons-material/People';
 import { JsonForms } from '@jsonforms/react';
 import { materialRenderers, materialCells } from '@jsonforms/material-renderers';
 import { rankWith, isStringControl } from '@jsonforms/core';
@@ -40,9 +42,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import Pagination from '@mui/material/Pagination';
 
-// ---------------------
-// Custom Renderer Setup
-// ---------------------
+
 const iconMapping = {
   name: <PersonIcon />,
   companyName: <BusinessIcon />,
@@ -80,15 +80,16 @@ const CustomControl = (props) => {
 const customTester = rankWith(4, isStringControl);
 const CustomRenderer = withJsonFormsControlProps(CustomControl);
 
+// JSON Forms schema & uischema
 const schema = {
   type: "object",
   properties: {
     name: { type: "string", pattern: "^[A-Za-z\\s]+$" },
     companyName: { type: "string", pattern: "^[A-Za-z\\s]+$" },
     email: { type: "string", format: "email" },
-    phone: { type: "string", pattern: "^[0-9]{10}$" }
+    phone: { type: "string" }
   },
-  required: ["name", "companyName", "email", "phone"]
+  required: [ "name", "companyName", "email", "phone" ]
 };
 
 const uischema = {
@@ -116,24 +117,27 @@ export default function UserDashboard() {
   const [editing, setEditing] = useState(false);
   const [currentRecordId, setCurrentRecordId] = useState(null);
   
+  // For popups
   const [modal, setModal] = useState({ open: false, message: '', severity: 'success' });
   const handleCloseModal = () => setModal({ ...modal, open: false });
 
-  
+  // For sorting
   const [sortOrder, setSortOrder] = useState(null);
 
- 
+  // For pagination
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 7;
 
-  // --------------------------------------
-  // States & dialog for "Delete All" logic
-  // --------------------------------------
+  // Confirm "Delete All"
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const handleOpenDeleteAll = () => setDeleteAllOpen(true);
   const handleCloseDeleteAll = () => setDeleteAllOpen(false);
 
- 
+  // Confirm row-level delete
+  const [deleteRowOpen, setDeleteRowOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState(null);
+
+
   const handleSubmit = async () => {
     const nameRegex = /^[A-Za-z\s]+$/;
     const companyRegex = /^[A-Za-z\s]+$/;
@@ -163,9 +167,11 @@ export default function UserDashboard() {
 
     try {
       if (editing && currentRecordId) {
+        // Update existing record
         await axios.put(`http://localhost:4000/api/records/${currentRecordId}`, formData);
         setModal({ open: true, message: 'Record updated successfully!', severity: 'success' });
       } else {
+        // Create new record
         await axios.post('http://localhost:4000/api/records', formData);
         setModal({ open: true, message: 'Record saved successfully!', severity: 'success' });
       }
@@ -173,22 +179,31 @@ export default function UserDashboard() {
       setEditing(false);
       setCurrentRecordId(null);
     } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message;
       setModal({
         open: true,
-        message: 'Error saving record: ' + (error.response?.data?.message || error.message),
+        message: 'Error saving record: ' + errorMsg,
         severity: 'error'
       });
     }
   };
 
- 
+  // 2) Search by any field(s)
   const handleSearch = async () => {
     try {
+      // get all non-epty fields from formData
       const nonEmptyData = Object.entries(formData)
-        .filter(([key, value]) => value !== undefined && value !== '')
+        .filter(([_, value]) => value !== undefined && value !== '')
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+      if (Object.keys(nonEmptyData).length === 0) {
+        setModal({ open: true, message: 'Please enter at least one field to search.', severity: 'warning' });
+        return;
+      }
+
       const queryString = new URLSearchParams(nonEmptyData).toString();
       const { data } = await axios.get(`http://localhost:4000/api/records/search?${queryString}`);
+      
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No matching records found!', severity: 'info' });
       } else {
@@ -203,9 +218,24 @@ export default function UserDashboard() {
     }
   };
 
-  // ----------------
-  // Edit single row
-  // ----------------
+  // 3) View All Users (GET /api/records)
+  const handleViewAll = async () => {
+    try {
+      const { data } = await axios.get('http://localhost:4000/api/records');
+      setSearchResults(data);
+      if (!data || data.length === 0) {
+        setModal({ open: true, message: 'No users found!', severity: 'info' });
+      }
+    } catch (error) {
+      setModal({
+        open: true,
+        message: 'Error retrieving all records: ' + (error.response?.data?.message || error.message),
+        severity: 'error'
+      });
+    }
+  };
+
+  // 4) Row-Level Edit
   const handleEdit = (record) => {
     setFormData(record);
     setEditing(true);
@@ -213,23 +243,37 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
-   // Delete single row
-   const handleDeleteRow = async (id) => {
-    try {
-      await axios.delete(`http://localhost:4000/api/records/${id}`);
-      setSearchResults((prev) => prev.filter((item) => item._id !== id));
-      setModal({ open: true, message: 'Record deleted successfully!', severity: 'success' });
-    } catch (error) {
-      setModal({
-        open: true,
-        message: 'Error deleting record: ' + (error.response?.data?.message || error.message),
-        severity: 'error'
-      });
+  // 5) Row-Level Delete Logic
+  const handleDeleteRowClick = (record) => {
+    setRecordToDelete(record);
+    setDeleteRowOpen(true);
+  };
+
+  const handleCloseDeleteRow = () => {
+    setDeleteRowOpen(false);
+    setRecordToDelete(null);
+  };
+
+  const handleConfirmDeleteRow = async () => {
+    if (recordToDelete) {
+      try {
+        await axios.delete(`http://localhost:4000/api/records/${recordToDelete._id}`);
+        setSearchResults((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+        setModal({ open: true, message: 'Record deleted successfully!', severity: 'success' });
+      } catch (error) {
+        setModal({
+          open: true,
+          message: 'Error deleting record: ' + (error.response?.data?.message || error.message),
+          severity: 'error'
+        });
+      } finally {
+        handleCloseDeleteRow();
+      }
     }
   };
 
-   // Delete all records
-   const handleConfirmDeleteAll = async () => {
+  // 6) Delete All Records
+  const handleConfirmDeleteAll = async () => {
     try {
       await axios.delete('http://localhost:4000/api/records');
       setSearchResults([]);
@@ -245,8 +289,8 @@ export default function UserDashboard() {
     }
   };
 
-   // Download to Excel 
-   const handleDownload = () => {
+  // 7) Download Data
+  const handleDownload = () => {
     if (!searchResults || searchResults.length === 0) {
       setModal({ open: true, message: 'No data to download.', severity: 'warning' });
       return;
@@ -258,9 +302,7 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'Search results downloaded successfully!', severity: 'success' });
   };
 
-   
-  // 1) Sorting: sort by 'name' alphabetically if sortOrder is 'asc' or 'desc'.
-  //    If sortOrder is null, we display defaullt order as searchResults.
+  // 8) Sorting
   const sortedResults = useMemo(() => {
     if (!searchResults) return [];
     let resultsCopy = [...searchResults];
@@ -272,7 +314,7 @@ export default function UserDashboard() {
     return resultsCopy;
   }, [searchResults, sortOrder]);
 
-  // 2) Pagination
+  // 9) Pagination
   const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
   const currentTableData = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -280,7 +322,7 @@ export default function UserDashboard() {
     return sortedResults.slice(startIndex, endIndex);
   }, [sortedResults, currentPage]);
 
-  // Toggle sorting order
+  // 10) Toggle Sorting
   const handleSortToggle = () => {
     if (sortOrder === null) setSortOrder('asc');
     else if (sortOrder === 'asc') setSortOrder('desc');
@@ -288,11 +330,12 @@ export default function UserDashboard() {
     setCurrentPage(1); // reset to page 1 after re-sorting
   };
 
-  // Change page
+  // 11) Handle page change
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
 
+  // RENDER: JSX
   return (
     <Container maxWidth="xl" sx={{ marginTop: '2rem', overflow: 'hidden' }}>
       <Box display="flex" gap="2%">
@@ -325,6 +368,7 @@ export default function UserDashboard() {
                 </ThemeProvider>
               </Box>
               <Box mt={2} display="flex" gap={2}>
+                {/* Save/Update Button */}
                 <Button
                   size="small"
                   variant="contained"
@@ -339,6 +383,8 @@ export default function UserDashboard() {
                 >
                   {editing ? 'Update' : 'Save'}
                 </Button>
+
+                {/* Search Button */}
                 <Button
                   size="small"
                   variant="contained"
@@ -352,6 +398,23 @@ export default function UserDashboard() {
                   }}
                 >
                   Search
+                </Button>
+
+                {/* View All Button */}
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={handleViewAll}
+                  startIcon={<PeopleIcon />} 
+                  sx={{
+                    textTransform: 'none',
+                    padding: '0.2rem 1rem',
+                    borderRadius: '8px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  View All 
                 </Button>
               </Box>
               <Box display="flex" justifyContent="flex-end" mt={2}>
@@ -372,8 +435,6 @@ export default function UserDashboard() {
                 marginTop: '-1rem',
                 padding: '0.6rem', 
                 borderRadius: '0px',
-                // background: 'red',
-
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
             >
@@ -423,8 +484,15 @@ export default function UserDashboard() {
                     variant="contained" 
                     color="primary"
                     onClick={handleDownload}
-                    sx={{ textTransform: 'none', mr: 1 }}
-                  >
+                    startIcon={<DownloadIcon />}
+                    sx={{ 
+                      textTransform: 'none', 
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      mr: 1 
+                    }}
+                  > 
                     Download To Excel
                   </Button>
 
@@ -448,16 +516,12 @@ export default function UserDashboard() {
                       <TableCell style={{ width: '150px', whiteSpace: 'nowrap' }}><strong>Email</strong></TableCell>
                       <TableCell style={{ width: '120px', whiteSpace: 'nowrap' }}><strong>Phone Number</strong></TableCell>
                       <TableCell style={{ width: '70px', whiteSpace: 'nowrap' }}><strong>Edit</strong></TableCell>
-                      {/* New Delete Column */}
                       <TableCell style={{ width: '70px', whiteSpace: 'nowrap' }}><strong>Delete</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {currentTableData.map((record, idx) => (
-                      <TableRow
-                        key={idx}
-                        sx={{ height: '5px' }} // Decreased row height
-                      >
+                      <TableRow key={idx} sx={{ height: '5px' }}>
                         <TableCell>{record.name}</TableCell>
                         <TableCell>{record.companyName}</TableCell>
                         <TableCell>{record.email}</TableCell>
@@ -472,9 +536,8 @@ export default function UserDashboard() {
                             </motion.div>
                           </IconButton>
                         </TableCell>
-                        {/* Delete row icon */}
                         <TableCell>
-                          <IconButton size="small" onClick={() => handleDeleteRow(record._id)}>
+                          <IconButton size="small" onClick={() => handleDeleteRowClick(record)}>
                             <motion.div
                               whileHover={{ scale: 1.2 }}
                               whileTap={{ scale: 0.9 }}
@@ -504,7 +567,7 @@ export default function UserDashboard() {
         </Box>
       </Box>
 
-      {/* Existing alert dialog for messages */}
+      {/* Popup dialog for messages */}
       <Dialog 
         open={modal.open} 
         onClose={handleCloseModal}
@@ -536,6 +599,22 @@ export default function UserDashboard() {
         <DialogActions>
           <Button onClick={handleCloseDeleteAll} autoFocus>No</Button>
           <Button onClick={handleConfirmDeleteAll} color="error">Yes, Delete All</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation dialog for row-level delete */}
+      <Dialog
+        open={deleteRowOpen}
+        onClose={handleCloseDeleteRow}
+        maxWidth="xs"
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this user?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteRow} autoFocus>No</Button>
+          <Button onClick={handleConfirmDeleteRow} color="error">Yes, Delete</Button>
         </DialogActions>
       </Dialog>
     </Container>
