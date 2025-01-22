@@ -4,7 +4,6 @@ import {
   Button,
   Typography,
   Container,
-  Paper,
   IconButton,
   InputAdornment,
   Box,
@@ -30,15 +29,12 @@ export default function LoginPage({ onLogin }) {
   const toggleShowPassword = () => setShowPassword(!showPassword);
 
   const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
+    if (reason === 'clickaway') return;
     setSnackbarOpen(false);
   };
 
   const handleSubmit = async () => {
-    // Simple front-end validation
-    if (!username || !password) {
+     if (!username || !password) {
       setSnackbarMessage('Please fill in all details');
       setSnackbarSeverity('warning');
       setSnackbarOpen(true);
@@ -46,10 +42,12 @@ export default function LoginPage({ onLogin }) {
     }
 
     try {
-      await axios.post('http://localhost:4000/api/auth/login', { username, password });
-      onLogin('user');
-      localStorage.setItem('userRole', 'user');
-      navigate('/user', { replace: true });
+      await axios.post('http://localhost:4000/api/auth/login', {
+        username,
+        password
+      });
+       onLogin();
+       navigate('/user', { replace: true });
     } catch (error) {
       setSnackbarMessage(error.response?.data?.message || 'Login failed');
       setSnackbarSeverity('error');
@@ -65,7 +63,7 @@ export default function LoginPage({ onLogin }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f5f5f5'
       }}
     >
       <Box
@@ -78,7 +76,7 @@ export default function LoginPage({ onLogin }) {
           background: 'white',
           borderRadius: '12px',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden',
+          overflow: 'hidden'
         }}
       >
         {/* Left Section: Logo */}
@@ -87,10 +85,14 @@ export default function LoginPage({ onLogin }) {
             width: '50%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'center'
           }}
         >
-          <img src={logo} alt="Logo" style={{ width: '70%', maxWidth: '300px' }} />
+          <img
+            src={logo}
+            alt="Logo"
+            style={{ width: '70%', maxWidth: '300px' }}
+          />
         </Box>
 
         {/* Right Section: Login Form */}
@@ -100,7 +102,7 @@ export default function LoginPage({ onLogin }) {
             padding: '3rem',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
+            alignItems: 'center'
           }}
         >
           <Typography
@@ -118,7 +120,10 @@ export default function LoginPage({ onLogin }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             variant="outlined"
-            sx={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '4px' }}
+            sx={{
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              borderRadius: '4px'
+            }}
           />
 
           <TextField
@@ -129,7 +134,10 @@ export default function LoginPage({ onLogin }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             variant="outlined"
-            sx={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '4px' }}
+            sx={{
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              borderRadius: '4px'
+            }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -137,7 +145,7 @@ export default function LoginPage({ onLogin }) {
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
-              ),
+              )
             }}
           />
 
@@ -155,10 +163,9 @@ export default function LoginPage({ onLogin }) {
               boxShadow: '0px 4px 20px rgba(33,203,243,0.3)',
               marginRight: 'auto',
               textTransform: 'none',
-
               '&:hover': {
-                background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)',
-              },
+                background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)'
+              }
             }}
           >
             Sign In
@@ -166,16 +173,21 @@ export default function LoginPage({ onLogin }) {
         </Box>
       </Box>
 
-       <Snackbar
+      <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
     </Container>
   );
 }
+ 

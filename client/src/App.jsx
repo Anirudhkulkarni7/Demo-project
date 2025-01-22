@@ -1,37 +1,56 @@
+// App.jsx
+
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import UserDashboard from './pages/UserDashboard';
 import NavBar from './components/NavBar';
 
 function App() {
-  const [role, setRole] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
+  // On mount, check localStorage to see if user was previously logged in
   useEffect(() => {
-    const storedRole = localStorage.getItem('userRole');
-    if (storedRole) {
-      setRole(storedRole);
+    const storedStatus = localStorage.getItem('isLoggedIn');
+    if (storedStatus === 'true') {
+      setIsLoggedIn(true);
     }
   }, []);
 
-  const handleLogin = (userRole) => {
-    setRole(userRole);
+  const handleLogin = () => {
+     setIsLoggedIn(true);
+    localStorage.setItem('isLoggedIn', 'true');
   };
 
   const handleLogout = () => {
-    setRole(null);
-    localStorage.removeItem('userRole');
+     setIsLoggedIn(false);
+    localStorage.removeItem('isLoggedIn');
     navigate('/', { replace: true });
   };
 
   return (
     <>
-      {role && <NavBar onLogout={handleLogout} />}
+      {isLoggedIn && <NavBar onLogout={handleLogout} />}
+
       <Routes>
-        <Route path="/" element={<LoginPage onLogin={handleLogin} />} />
-        <Route path="/user" element={<UserDashboard />} />
-        <Route path="*" element={<LoginPage onLogin={handleLogin} />} />
+         <Route
+          path="/"
+          element={
+            isLoggedIn
+              ? <Navigate to="/user" replace />
+              : <LoginPage onLogin={handleLogin} />
+          }
+        />
+
+         <Route
+          path="/user"
+          element={
+            isLoggedIn ? <UserDashboard /> : <Navigate to="/" replace />
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

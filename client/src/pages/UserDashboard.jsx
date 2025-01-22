@@ -218,7 +218,7 @@ export default function UserDashboard() {
     }
   };
 
-  // 3) View All Users (GET /api/records)
+  // 3) View All Users  
   const handleViewAll = async () => {
     try {
       const { data } = await axios.get('http://localhost:4000/api/records');
@@ -327,7 +327,7 @@ export default function UserDashboard() {
     if (sortOrder === null) setSortOrder('asc');
     else if (sortOrder === 'asc') setSortOrder('desc');
     else setSortOrder(null);
-    setCurrentPage(1); // reset to page 1 after re-sorting
+    setCurrentPage(1); 
   };
 
   // 11) Handle page change
@@ -335,8 +335,7 @@ export default function UserDashboard() {
     setCurrentPage(value);
   };
 
-  // RENDER: JSX
-  return (
+   return (
     <Container maxWidth="xl" sx={{ marginTop: '2rem', overflow: 'hidden' }}>
       <Box display="flex" gap="2%">
         {/* Left Panel: JSONForms Form */}

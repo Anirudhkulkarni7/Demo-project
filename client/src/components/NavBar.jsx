@@ -23,7 +23,7 @@ export default function NavBar({ onLogout }) {
           <Typography
             variant="h5"
             component={Link}
-            to="/"
+            to="/user"
             sx={{
               textDecoration: 'none',
               color: '#3f51b5',
