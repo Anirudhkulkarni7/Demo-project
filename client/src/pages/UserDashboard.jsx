@@ -1,4 +1,3 @@
-// client/src/pages/UserDashboard.jsx
 import React, { useState, useMemo } from 'react';
 import {
   Container,
@@ -18,29 +17,33 @@ import {
   DialogContent,
   DialogActions,
   ThemeProvider,
-  createTheme
+  createTheme,
+  TextField,
+  InputAdornment,
+  Pagination,
+  TableSortLabel
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
 import DownloadIcon from '@mui/icons-material/Download';
 import PeopleIcon from '@mui/icons-material/People';
+import RefreshIcon from '@mui/icons-material/Refresh';
+
 import { JsonForms } from '@jsonforms/react';
 import { materialRenderers, materialCells } from '@jsonforms/material-renderers';
 import { rankWith, isStringControl } from '@jsonforms/core';
 import { withJsonFormsControlProps } from '@jsonforms/react';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
+
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
-import Pagination from '@mui/material/Pagination';
 
 
 const iconMapping = {
@@ -50,6 +53,7 @@ const iconMapping = {
   phone: <PhoneIcon />
 };
 
+// Custom renderer for JSON Forms
 const CustomControl = (props) => {
   const { data, handleChange, path, errors, visible, label } = props;
   if (!visible) return null;
@@ -80,7 +84,6 @@ const CustomControl = (props) => {
 const customTester = rankWith(4, isStringControl);
 const CustomRenderer = withJsonFormsControlProps(CustomControl);
 
-// JSON Forms schema & uischema
 const schema = {
   type: "object",
   properties: {
@@ -121,9 +124,6 @@ export default function UserDashboard() {
   const [modal, setModal] = useState({ open: false, message: '', severity: 'success' });
   const handleCloseModal = () => setModal({ ...modal, open: false });
 
-  // For sorting
-  const [sortOrder, setSortOrder] = useState(null);
-
   // For pagination
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 7;
@@ -137,7 +137,39 @@ export default function UserDashboard() {
   const [deleteRowOpen, setDeleteRowOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
 
+  // -- Sorting
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('name');
 
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  // Function to sort data
+  const sortedResults = useMemo(() => {
+    const comparator = (a, b) => {
+      if (a[orderBy] < b[orderBy]) {
+        return order === 'asc' ? -1 : 1;
+      }
+      if (a[orderBy] > b[orderBy]) {
+        return order === 'asc' ? 1 : -1;
+      }
+      return 0;
+    };
+    return [...searchResults].sort(comparator);
+  }, [searchResults, order, orderBy]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
+  const currentTableData = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return sortedResults.slice(startIndex, endIndex);
+  }, [sortedResults, currentPage]);
+
+  // -- CREATE/UPDATE record
   const handleSubmit = async () => {
     const nameRegex = /^[A-Za-z\s]+$/;
     const companyRegex = /^[A-Za-z\s]+$/;
@@ -160,7 +192,7 @@ export default function UserDashboard() {
       setModal({
         open: true,
         message: 'Invalid phone number. Please enter a phone number in the format XXX-XXX-XXXX.',
-        severity: 'error',
+        severity: 'error'
       });
       return;
     }
@@ -175,9 +207,14 @@ export default function UserDashboard() {
         await axios.post('http://localhost:4000/api/records', formData);
         setModal({ open: true, message: 'Record saved successfully!', severity: 'success' });
       }
+      // Clear form & reset states
       setFormData({});
       setEditing(false);
       setCurrentRecordId(null);
+
+      // Refresh to show the new/updated data (if needed or if table is showing)
+      handleViewAll();
+
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
       setModal({
@@ -188,10 +225,10 @@ export default function UserDashboard() {
     }
   };
 
-  // 2) Search by any field(s)
+  // -- SEARCH by any field(s)
   const handleSearch = async () => {
     try {
-      // get all non-epty fields from formData
+      // get all non-empty fields from formData
       const nonEmptyData = Object.entries(formData)
         .filter(([_, value]) => value !== undefined && value !== '')
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
@@ -206,9 +243,9 @@ export default function UserDashboard() {
       
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No matching records found!', severity: 'info' });
-      } else {
-        setSearchResults(data);
-      }
+      } 
+      setSearchResults(data);
+      setCurrentPage(1);
     } catch (error) {
       setModal({
         open: true,
@@ -218,11 +255,13 @@ export default function UserDashboard() {
     }
   };
 
-  // 3) View All Users  
+  // -- VIEW ALL
   const handleViewAll = async () => {
     try {
       const { data } = await axios.get('http://localhost:4000/api/records');
       setSearchResults(data);
+      setCurrentPage(1);
+
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No users found!', severity: 'info' });
       }
@@ -235,7 +274,7 @@ export default function UserDashboard() {
     }
   };
 
-  // 4) Row-Level Edit
+  // -- EDIT
   const handleEdit = (record) => {
     setFormData(record);
     setEditing(true);
@@ -243,7 +282,7 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
-  // 5) Row-Level Delete Logic
+  // -- Row-Level Delete
   const handleDeleteRowClick = (record) => {
     setRecordToDelete(record);
     setDeleteRowOpen(true);
@@ -272,7 +311,7 @@ export default function UserDashboard() {
     }
   };
 
-  // 6) Delete All Records
+  // -- DELETE ALL
   const handleConfirmDeleteAll = async () => {
     try {
       await axios.delete('http://localhost:4000/api/records');
@@ -289,7 +328,7 @@ export default function UserDashboard() {
     }
   };
 
-  // 7) Download Data
+  // -- DOWNLOAD
   const handleDownload = () => {
     if (!searchResults || searchResults.length === 0) {
       setModal({ open: true, message: 'No data to download.', severity: 'warning' });
@@ -302,40 +341,17 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'Search results downloaded successfully!', severity: 'success' });
   };
 
-  // 8) Sorting
-  const sortedResults = useMemo(() => {
-    if (!searchResults) return [];
-    let resultsCopy = [...searchResults];
-    if (sortOrder === 'asc') {
-      resultsCopy.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortOrder === 'desc') {
-      resultsCopy.sort((a, b) => b.name.localeCompare(a.name));
-    }
-    return resultsCopy;
-  }, [searchResults, sortOrder]);
-
-  // 9) Pagination
-  const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
-  const currentTableData = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    return sortedResults.slice(startIndex, endIndex);
-  }, [sortedResults, currentPage]);
-
-  // 10) Toggle Sorting
-  const handleSortToggle = () => {
-    if (sortOrder === null) setSortOrder('asc');
-    else if (sortOrder === 'asc') setSortOrder('desc');
-    else setSortOrder(null);
-    setCurrentPage(1); 
+  // -- REFRESH (simply re-calls handleViewAll)
+  const handleRefresh = () => {
+    handleViewAll();
   };
 
-  // 11) Handle page change
+  // -- Pagination
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
 
-   return (
+  return (
     <Container maxWidth="xl" sx={{ marginTop: '2rem', overflow: 'hidden' }}>
       <Box display="flex" gap="2%">
         {/* Left Panel: JSONForms Form */}
@@ -366,6 +382,7 @@ export default function UserDashboard() {
                   />
                 </ThemeProvider>
               </Box>
+
               <Box mt={2} display="flex" gap={2}>
                 {/* Save/Update Button */}
                 <Button
@@ -416,6 +433,7 @@ export default function UserDashboard() {
                   View All 
                 </Button>
               </Box>
+
               <Box display="flex" justifyContent="flex-end" mt={2}>
                 <Typography variant="body2" color="red">
                   All fields are required to save a record.
@@ -426,7 +444,7 @@ export default function UserDashboard() {
         </Box>
 
         {/* Right Panel: Search Results */}
-        <Box width="80%"> 
+        <Box width="70%"> 
           {searchResults.length > 0 && (
             <Paper 
               elevation={6}
@@ -437,7 +455,7 @@ export default function UserDashboard() {
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
             >
-              {/* Top row with Title, Filter/Sort, Buttons */}
+              {/* Top row with Title, Filter/Buttons */}
               <Box 
                 display="flex" 
                 justifyContent="space-between" 
@@ -449,17 +467,17 @@ export default function UserDashboard() {
                   Search Results
                 </Typography>
                 <Box>
-                  {/* Sort Button */}
+                  {/* Refresh Button */}
                   <IconButton 
                     size="small" 
-                    onClick={handleSortToggle}
+                    onClick={handleRefresh}
                     sx={{ mr: 1 }}
                   >
                     <motion.div
                       whileHover={{ scale: 1.2 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      <SortByAlphaIcon />
+                      <RefreshIcon />
                     </motion.div>
                   </IconButton>
 
@@ -505,19 +523,52 @@ export default function UserDashboard() {
                 </Box>
               </Box>
 
-              {/* Table with pagination */}
+              {/* Table */}
               <TableContainer sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell style={{ width: '100px', whiteSpace: 'nowrap' }}><strong>Name</strong></TableCell>
-                      <TableCell style={{ width: '150px', whiteSpace: 'nowrap' }}><strong>Company Name</strong></TableCell>
-                      <TableCell style={{ width: '150px', whiteSpace: 'nowrap' }}><strong>Email</strong></TableCell>
-                      <TableCell style={{ width: '120px', whiteSpace: 'nowrap' }}><strong>Phone Number</strong></TableCell>
-                      <TableCell style={{ width: '70px', whiteSpace: 'nowrap' }}><strong>Edit</strong></TableCell>
-                      <TableCell style={{ width: '70px', whiteSpace: 'nowrap' }}><strong>Delete</strong></TableCell>
+                      <TableCell sortDirection={orderBy === 'name' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'name'}
+                          direction={orderBy === 'name' ? order : 'asc'}
+                          onClick={() => handleRequestSort('name')}
+                        >
+                          <strong>Name</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sortDirection={orderBy === 'companyName' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'companyName'}
+                          direction={orderBy === 'companyName' ? order : 'asc'}
+                          onClick={() => handleRequestSort('companyName')}
+                        >
+                          <strong>Company Name</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sortDirection={orderBy === 'email' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'email'}
+                          direction={orderBy === 'email' ? order : 'asc'}
+                          onClick={() => handleRequestSort('email')}
+                        >
+                          <strong>Email</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sortDirection={orderBy === 'phone' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'phone'}
+                          direction={orderBy === 'phone' ? order : 'asc'}
+                          onClick={() => handleRequestSort('phone')}
+                        >
+                          <strong>Phone Number</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell><strong>Edit</strong></TableCell>
+                      <TableCell><strong>Delete</strong></TableCell>
                     </TableRow>
                   </TableHead>
+
                   <TableBody>
                     {currentTableData.map((record, idx) => (
                       <TableRow key={idx} sx={{ height: '5px' }}>
@@ -581,7 +632,7 @@ export default function UserDashboard() {
         <DialogActions>
           <Button onClick={handleCloseModal} autoFocus>
             OK
-          </Button>
+          </Button> 
         </DialogActions>
       </Dialog>
 
