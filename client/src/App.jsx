@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import LoginPage from './pages/LoginPage';
+import LoginPage from './pages/LoginPage'; 
 import UserDashboard from './pages/UserDashboard';
 import NavBar from './components/NavBar';
 
