@@ -1,15 +1,31 @@
 const Record = require('../models/Record');
 
-// CREATE a new record (with checks for unique fields)
+/**
+ * Helper function to get the next auto-incremented ID.
+ * Starts at 1234 if no records exist yet.
+ */
+async function getNextUniqueId() {
+  // Find the record with the highest uniqueId so far
+  const lastRecord = await Record.findOne({})
+    .sort({ uniqueId: -1 })
+    .lean();
+
+  if (!lastRecord || !lastRecord.uniqueId) {
+    return 1234; // Starting number if no records found
+  }
+  return lastRecord.uniqueId + 1;
+}
+
+// CREATE a new record
 exports.createRecord = async (req, res) => {
   try {
-    // 1) Check if customerName is already used by a non-deleted record (if you want unique by name)
+    // 1) Check if customerName is already used by a non-deleted record (if you want uniqueness by name)
     const existingCustomer = await Record.findOne({
       customerName: req.body.customerName,
       isDeleted: false
     });
     if (existingCustomer) {
-      return res.status(400).json({ message: "Customer Name is already in use." });
+      return res.status(400).json({ message: 'Customer Name is already in use.' });
     }
 
     // 2) Check if email is already taken by a non-deleted record
@@ -18,16 +34,22 @@ exports.createRecord = async (req, res) => {
       isDeleted: false
     });
     if (existingEmail) {
-      return res.status(400).json({ message: "Email is already in use." });
+      return res.status(400).json({ message: 'Email is already in use.' });
     }
 
-    // If checks pass, create the new record
-    const record = new Record(req.body);
+    // Get next auto-incremented ID
+    const newUniqueId = await getNextUniqueId();
+
+    // Create the new record with that uniqueId
+    const record = new Record({
+      ...req.body,
+      uniqueId: newUniqueId
+    });
     await record.save();
 
     res.status(201).json(record);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -41,11 +63,23 @@ exports.getAllRecords = async (req, res) => {
   }
 };
 
-// SEARCH records by any combination of fields (also only return not-deleted)
+// SEARCH records by any combination of fields (return not-deleted).
+// But for customerName and userName, do partial matches via $regex.
 exports.searchRecords = async (req, res) => {
   try {
-    const query = { isDeleted: false }; 
-    ['customerName', 'userName', 'designation', 'email', 'phoneNumber', 'city', 'segmentation'].forEach(field => {
+    const query = { isDeleted: false };
+
+    // Partial match for customerName
+    if (req.query.customerName) {
+      query.customerName = { $regex: req.query.customerName, $options: 'i' };
+    }
+    // Partial match for userName
+    if (req.query.userName) {
+      query.userName = { $regex: req.query.userName, $options: 'i' };
+    }
+
+    // Exact matches for other fields if present
+    ['designation', 'email', 'phoneNumber', 'city', 'segmentation'].forEach(field => {
       if (req.query[field]) {
         query[field] = req.query[field];
       }
@@ -58,7 +92,7 @@ exports.searchRecords = async (req, res) => {
   }
 };
 
-// UPDATE record (check unique customerName and unique email among non-deleted docs)
+// UPDATE record (check unique constraints)
 exports.updateRecord = async (req, res) => {
   try {
     // Check if the new customerName is already used by a different record
@@ -68,7 +102,7 @@ exports.updateRecord = async (req, res) => {
       isDeleted: false
     });
     if (existingCustomer) {
-      return res.status(400).json({ message: "Customer Name is already in use." });
+      return res.status(400).json({ message: 'Customer Name is already in use.' });
     }
 
     // Check if new email is already used by a different record
@@ -78,7 +112,7 @@ exports.updateRecord = async (req, res) => {
       isDeleted: false
     });
     if (existingEmail) {
-      return res.status(400).json({ message: "Email is already in use." });
+      return res.status(400).json({ message: 'Email is already in use.' });
     }
 
     const record = await Record.findByIdAndUpdate(
@@ -94,7 +128,7 @@ exports.updateRecord = async (req, res) => {
   }
 };
 
-// SOFT DELETE single record (instead of removing from DB, set isDeleted=true)
+// SOFT DELETE single record
 exports.deleteRecord = async (req, res) => {
   try {
     const record = await Record.findById(req.params.id);
@@ -118,5 +152,51 @@ exports.deleteAllRecords = async (req, res) => {
     return res.json({ message: 'All records soft-deleted successfully' });
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * OPTIONAL: Provide suggestions for companyName (customerName) as user types
+ * e.g., GET /api/records/suggestions/customerName?q=sha
+ */
+exports.suggestCustomerNames = async (req, res) => {
+  try {
+    const searchTerm = req.query.q || '';
+    if (!searchTerm) {
+      // If empty query, return empty or entire distinct list, your call
+      return res.json([]);
+    }
+
+    // Find all matching partial (case-insensitive)
+    const matches = await Record.find({
+      isDeleted: false,
+      customerName: { $regex: searchTerm, $options: 'i' }
+    }).distinct('customerName');
+
+    res.json(matches);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * OPTIONAL: Provide suggestions for userName
+ * e.g., GET /api/records/suggestions/userName?q=jo
+ */
+exports.suggestUserNames = async (req, res) => {
+  try {
+    const searchTerm = req.query.q || '';
+    if (!searchTerm) {
+      return res.json([]);
+    }
+
+    const matches = await Record.find({
+      isDeleted: false,
+      userName: { $regex: searchTerm, $options: 'i' }
+    }).distinct('userName');
+
+    res.json(matches);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

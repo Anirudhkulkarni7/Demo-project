@@ -31,7 +31,11 @@ const recordSchema = new mongoose.Schema({
     enum: ['LE', 'MM', 'SB', 'ACQ'],
     required: true
   },
-   isDeleted: {
+  uniqueId: {
+    type: Number,
+    unique: true
+  },
+  isDeleted: {
     type: Boolean,
     default: false
   }

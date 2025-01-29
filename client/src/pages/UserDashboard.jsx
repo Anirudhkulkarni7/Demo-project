@@ -1,5 +1,4 @@
-// src/pages/UserDashboard.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -27,14 +26,13 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 
+// Icons
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import DownloadIcon from '@mui/icons-material/Download';
 import PeopleIcon from '@mui/icons-material/People';
-// import RefreshIcon from '@mui/icons-material/Refresh';
-
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
 import WorkIcon from '@mui/icons-material/Work';
@@ -43,25 +41,28 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import ListIcon from '@mui/icons-material/List';
 
- const iconMapping = {
-  CompanyName: <PersonIcon />,
+// MUI Autocomplete
+import Autocomplete from '@mui/material/Autocomplete';
+
+const iconMapping = {
+  customerName: <PersonIcon />,
   userName: <BusinessIcon />,
   designation: <WorkIcon />,
-  email: <EmailIcon />,
-  phoneNumber: <PhoneIcon />,
   city: <LocationCityIcon />,
-  segmentation: <ListIcon />
+  segmentation: <ListIcon />,
+  email: <EmailIcon />,
+  phoneNumber: <PhoneIcon />
 };
 
 export default function UserDashboard({ role }) {
   const [formData, setFormData] = useState({
-    companyName: '',
+    customerName: '',
     userName: '',
     designation: '',
-    email: '',
-    phoneNumber: '',
     city: '',
-    segmentation: ''
+    segmentation: '',
+    email: '',
+    phoneNumber: ''
   });
 
   const [searchResults, setSearchResults] = useState([]);
@@ -90,37 +91,29 @@ export default function UserDashboard({ role }) {
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('customerName');
 
-  // Sorting function
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
+  // We'll also store **allRecords** in state (and localStorage) for local suggestions
+  const [allRecords, setAllRecords] = useState([]);
+  
+  // For on-the-fly autocomplete suggestions
+  const [customerNameSuggestions, setCustomerNameSuggestions] = useState([]);
+  const [userNameSuggestions, setUserNameSuggestions] = useState([]);
 
-  // Sort results
-  const sortedResults = useMemo(() => {
-    const comparator = (a, b) => {
-      if (a[orderBy] < b[orderBy]) return order === 'asc' ? -1 : 1;
-      if (a[orderBy] > b[orderBy]) return order === 'asc' ? 1 : -1;
-      return 0;
-    };
-    return [...searchResults].sort(comparator);
-  }, [searchResults, order, orderBy]);
+  // Fetch ALL records once on mount -> store in localStorage -> use for suggestions
+  useEffect(() => {
+    handleViewAll(); // This sets searchResults and also allRecords
+  }, []);
 
-  // Paginate
-  const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
-  const currentTableData = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    return sortedResults.slice(startIndex, endIndex);
-  }, [sortedResults, currentPage]);
+  // When allRecords changes, also save to localStorage
+  useEffect(() => {
+    localStorage.setItem('allRecords', JSON.stringify(allRecords));
+  }, [allRecords]);
 
-  // CREATE/UPDATE
+  // ---------- CREATE / UPDATE ----------
   const handleSubmit = async () => {
     // Basic validations
-    const nameRegex = /^[A-Za-z\s]+$/; 
+    const nameRegex = /^[A-Za-z\s]+$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/;
+    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/; // "XXX-XXX-XXXX"
 
     if (!formData.customerName || !nameRegex.test(formData.customerName)) {
       setModal({ open: true, message: 'Invalid Customer Name (letters/spaces only).', severity: 'error' });
@@ -134,18 +127,6 @@ export default function UserDashboard({ role }) {
       setModal({ open: true, message: 'Invalid Designation (letters/spaces only).', severity: 'error' });
       return;
     }
-    if (!formData.email || !emailRegex.test(formData.email)) {
-      setModal({ open: true, message: 'Invalid Email.', severity: 'error' });
-      return;
-    }
-    if (!formData.phoneNumber || !phoneRegex.test(formData.phoneNumber)) {
-      setModal({ 
-        open: true, 
-        message: 'Invalid phone number. Expected format: XXX-XXX-XXXX.', 
-        severity: 'error' 
-      });
-      return;
-    }
     if (!formData.city || !nameRegex.test(formData.city)) {
       setModal({ open: true, message: 'Invalid City (letters/spaces only).', severity: 'error' });
       return;
@@ -154,28 +135,44 @@ export default function UserDashboard({ role }) {
       setModal({ open: true, message: 'Please select a segmentation.', severity: 'error' });
       return;
     }
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      setModal({ open: true, message: 'Invalid Email.', severity: 'error' });
+      return;
+    }
+    if (!formData.phoneNumber || !phoneRegex.test(formData.phoneNumber)) {
+      setModal({
+        open: true,
+        message: 'Invalid phone number. Expected format: XXX-XXX-XXXX.',
+        severity: 'error'
+      });
+      return;
+    }
 
     try {
       if (editing && currentRecordId) {
+        // Update existing
         await axios.put(`http://localhost:4000/api/records/${currentRecordId}`, formData);
         setModal({ open: true, message: 'Record updated successfully!', severity: 'success' });
       } else {
+        // Create new
         await axios.post('http://localhost:4000/api/records', formData);
         setModal({ open: true, message: 'Record saved successfully!', severity: 'success' });
       }
 
+      // Reset form & state
       setFormData({
         customerName: '',
         userName: '',
         designation: '',
-        email: '',
-        phoneNumber: '',
         city: '',
-        segmentation: ''
+        segmentation: '',
+        email: '',
+        phoneNumber: ''
       });
       setEditing(false);
       setCurrentRecordId(null);
 
+      // Refresh results & local records
       handleViewAll();
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
@@ -187,9 +184,10 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // SEARCH
+  // ---------- SEARCH ----------
   const handleSearch = async () => {
     try {
+      // Build query from non-empty form fields
       const nonEmptyData = Object.entries(formData)
         .filter(([_, value]) => value !== '')
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
@@ -216,11 +214,13 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // VIEW ALL
+  // ---------- VIEW ALL ----------
   const handleViewAll = async () => {
+    // This fetches all (non-deleted) records from the server
     try {
       const { data } = await axios.get('http://localhost:4000/api/records');
       setSearchResults(data);
+      setAllRecords(data);
       setCurrentPage(1);
 
       if (!data || data.length === 0) {
@@ -235,15 +235,23 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // EDIT
+  // ---------- EDIT ----------
   const handleEdit = (record) => {
-    setFormData(record);
+    setFormData({
+      customerName: record.customerName,
+      userName: record.userName,
+      designation: record.designation,
+      city: record.city,
+      segmentation: record.segmentation,
+      email: record.email,
+      phoneNumber: record.phoneNumber
+    });
     setEditing(true);
     setCurrentRecordId(record._id);
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
-  // Row-level Delete
+  // ---------- DELETE (single) ----------
   const handleDeleteRowClick = (record) => {
     setRecordToDelete(record);
     setDeleteRowOpen(true);
@@ -256,7 +264,8 @@ export default function UserDashboard({ role }) {
     if (recordToDelete) {
       try {
         await axios.delete(`http://localhost:4000/api/records/${recordToDelete._id}`);
-        setSearchResults(prev => prev.filter(item => item._id !== recordToDelete._id));
+        setSearchResults((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+        setAllRecords((prev) => prev.filter((item) => item._id !== recordToDelete._id));
         setModal({ open: true, message: 'Record deleted successfully!', severity: 'success' });
       } catch (error) {
         setModal({
@@ -270,11 +279,12 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // DELETE ALL
+  // ---------- DELETE ALL ----------
   const handleConfirmDeleteAll = async () => {
     try {
-      await axios.delete('http://localhost:4000/api/records');
+      await axios.delete('http://localhost:4000/api/records'); // deletes (soft-deletes) all
       setSearchResults([]);
+      setAllRecords([]);
       setModal({ open: true, message: 'All records deleted successfully!', severity: 'success' });
     } catch (error) {
       setModal({
@@ -287,7 +297,7 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // DOWNLOAD
+  // ---------- DOWNLOAD ----------
   const handleDownload = () => {
     if (!searchResults || searchResults.length === 0) {
       setModal({ open: true, message: 'No data to download.', severity: 'warning' });
@@ -295,32 +305,96 @@ export default function UserDashboard({ role }) {
     }
     const worksheet = XLSX.utils.json_to_sheet(searchResults);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "SearchResults");
-    XLSX.writeFile(workbook, "SearchResults.xlsx");
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'SearchResults');
+    XLSX.writeFile(workbook, 'SearchResults.xlsx');
     setModal({ open: true, message: 'Search results downloaded successfully!', severity: 'success' });
   };
 
- 
-  // Page change
+  // ---------- PAGINATION ----------
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
 
+  // ---------- SORTING ----------
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedResults = useMemo(() => {
+    const comparator = (a, b) => {
+      // Convert to string to handle numbers & strings
+      const valA = (a[orderBy] || '').toString().toLowerCase();
+      const valB = (b[orderBy] || '').toString().toLowerCase();
+
+      if (valA < valB) return order === 'asc' ? -1 : 1;
+      if (valA > valB) return order === 'asc' ? 1 : -1;
+      return 0;
+    };
+    return [...searchResults].sort(comparator);
+  }, [searchResults, order, orderBy]);
+
+  const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
+  const currentTableData = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return sortedResults.slice(startIndex, endIndex);
+  }, [sortedResults, currentPage, rowsPerPage]);
+
+  // ---------- LOCAL AUTOCOMPLETE SUGGESTIONS ----------
+  // We'll filter from localStorage or from the allRecords state
+  const filterCustomerNameSuggestions = useCallback((input) => {
+    if (!input) return [];
+    // Pull from localStorage OR from allRecords
+    const data = JSON.parse(localStorage.getItem('allRecords')) || [];
+    // get distinct list of customerNames
+    const distinctNames = [...new Set(data.map((r) => r.customerName))];
+    // return those that contain the input substring (case-insensitive)
+    return distinctNames.filter((name) =>
+      name.toLowerCase().includes(input.toLowerCase())
+    );
+  }, []);
+
+  const filterUserNameSuggestions = useCallback((input) => {
+    if (!input) return [];
+    const data = JSON.parse(localStorage.getItem('allRecords')) || [];
+    const distinctUserNames = [...new Set(data.map((r) => r.userName))];
+    return distinctUserNames.filter((uname) =>
+      uname.toLowerCase().includes(input.toLowerCase())
+    );
+  }, []);
+
+  // Whenever user types in `customerName`, we update suggestions
+  const handleCustomerNameInputChange = (event, newInputValue) => {
+    setFormData((prev) => ({ ...prev, customerName: newInputValue }));
+    const suggestions = filterCustomerNameSuggestions(newInputValue);
+    setCustomerNameSuggestions(suggestions);
+  };
+
+  // Whenever user types in `userName`, we update suggestions
+  const handleUserNameInputChange = (event, newInputValue) => {
+    setFormData((prev) => ({ ...prev, userName: newInputValue }));
+    const suggestions = filterUserNameSuggestions(newInputValue);
+    setUserNameSuggestions(suggestions);
+  };
+
   return (
-    <Container maxWidth="xl" sx={{ marginTop: '2rem', overflow: 'hidden' }}>
-      <Box display="flex" gap="2%">
+    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden' , marginLeft: '-25px'}}>
+      <Box display="flex" gap="2%" >
         {/* Left Panel: Contacts Entry Form */}
         <Box width="30%">
           <motion.div
+          
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
           >
-            <Paper 
-              elevation={6} 
-              sx={{ 
-                padding: '1.2rem', 
-                borderRadius: '0px', 
+            <Paper
+              elevation={6}
+              sx={{
+                padding: '1.2rem',
+                borderRadius: '0px',
                 background: 'rgba(255,255,255,0.85)',
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
@@ -329,36 +403,61 @@ export default function UserDashboard({ role }) {
                 Contacts Entry Form
               </Typography>
 
-              {/* Customer Name */}
-              <TextField
-                label="Customer Name"
+              {/* Customer Name Autocomplete */}
+              <Autocomplete
+                freeSolo
+                options={customerNameSuggestions}
+                getOptionLabel={(option) => option}
                 value={formData.customerName}
-                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                fullWidth
-                margin="normal"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      {iconMapping.customerName}
-                    </InputAdornment>
-                  )
+                onInputChange={handleCustomerNameInputChange}
+                onChange={(event, newValue) => {
+                  // If user selects from dropdown, set it
+                  setFormData((prev) => ({ ...prev, customerName: newValue || '' }));
                 }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Customer Name"
+                    margin="normal"
+                    fullWidth
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          {iconMapping.customerName}
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                )}
               />
 
-              {/* User Name */}
-              <TextField
-                label="User Name"
+              {/* User Name Autocomplete */}
+              <Autocomplete
+                freeSolo
+                options={userNameSuggestions}
+                getOptionLabel={(option) => option}
                 value={formData.userName}
-                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                fullWidth
-                margin="normal"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      {iconMapping.userName}
-                    </InputAdornment>
-                  )
+                onInputChange={handleUserNameInputChange}
+                onChange={(event, newValue) => {
+                  setFormData((prev) => ({ ...prev, userName: newValue || '' }));
                 }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="User Name"
+                    margin="normal"
+                    fullWidth
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          {iconMapping.userName}
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                )}
               />
 
               {/* Designation */}
@@ -372,38 +471,6 @@ export default function UserDashboard({ role }) {
                   startAdornment: (
                     <InputAdornment position="start">
                       {iconMapping.designation}
-                    </InputAdornment>
-                  )
-                }}
-              />
-
-              {/* Email */}
-              <TextField
-                label="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                fullWidth
-                margin="normal"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      {iconMapping.email}
-                    </InputAdornment>
-                  )
-                }}
-              />
-
-              {/* Phone Number */}
-              <TextField
-                label="Phone Number (XXX-XXX-XXXX)"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                fullWidth
-                margin="normal"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      {iconMapping.phoneNumber}
                     </InputAdornment>
                   )
                 }}
@@ -446,6 +513,38 @@ export default function UserDashboard({ role }) {
                 <MenuItem value="SB">SB (Small Business)</MenuItem>
                 <MenuItem value="ACQ">ACQ (Acquisition)</MenuItem>
               </TextField>
+
+              {/* Email */}
+              <TextField
+                label="Email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.email}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* Phone Number */}
+              <TextField
+                label="Phone Number (XXX-XXX-XXXX)"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.phoneNumber}
+                    </InputAdornment>
+                  )
+                }}
+              />
 
               {/* Buttons */}
               <Box mt={2} display="flex" gap={2}>
@@ -514,8 +613,9 @@ export default function UserDashboard({ role }) {
             <Paper
               elevation={6}
               sx={{
+                marginRight: '-20px',
                 marginTop: '-1rem',
-                padding: '0.6rem',
+                padding: '0.4rem',
                 borderRadius: '0px',
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
@@ -532,15 +632,6 @@ export default function UserDashboard({ role }) {
                   Search Results
                 </Typography>
                 <Box>
-                  {/* Refresh Button (Admin only, if desired) */}
-                  {/* {role === 'admin' && (
-                    <IconButton size="small" onClick={handleRefresh} sx={{ mr: 1 }}>
-                      <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
-                        <RefreshIcon />
-                      </motion.div>
-                    </IconButton>
-                  )} */}
-
                   {/* Delete All Button (Admin only) */}
                   {role === 'admin' && (
                     <IconButton size="small" onClick={handleOpenDeleteAll} sx={{ mr: 1 }}>
@@ -577,12 +668,33 @@ export default function UserDashboard({ role }) {
                 </Box>
               </Box>
 
-              {/* Table */}
+              {/* Table (10 columns) */}
               <TableContainer sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      {/* 7 columns */}
+                      {/* 1) Edit */}
+                      <TableCell>
+                        <strong>Edit</strong>
+                      </TableCell>
+
+                      {/* 2) Delete */}
+                      <TableCell>
+                        <strong>Delete</strong>
+                      </TableCell>
+
+                      {/* 3) Unique ID */}
+                      <TableCell sortDirection={orderBy === 'uniqueId' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'uniqueId'}
+                          direction={orderBy === 'uniqueId' ? order : 'asc'}
+                          onClick={() => handleRequestSort('uniqueId')}
+                        >
+                          <strong>Unique ID</strong>
+                        </TableSortLabel>
+                      </TableCell>
+
+                      {/* 4) Customer Name */}
                       <TableCell sortDirection={orderBy === 'customerName' ? order : false}>
                         <TableSortLabel
                           active={orderBy === 'customerName'}
@@ -592,6 +704,8 @@ export default function UserDashboard({ role }) {
                           <strong>Customer Name</strong>
                         </TableSortLabel>
                       </TableCell>
+
+                      {/* 5) User Name */}
                       <TableCell sortDirection={orderBy === 'userName' ? order : false}>
                         <TableSortLabel
                           active={orderBy === 'userName'}
@@ -601,6 +715,8 @@ export default function UserDashboard({ role }) {
                           <strong>User Name</strong>
                         </TableSortLabel>
                       </TableCell>
+
+                      {/* 6) Designation */}
                       <TableCell sortDirection={orderBy === 'designation' ? order : false}>
                         <TableSortLabel
                           active={orderBy === 'designation'}
@@ -610,24 +726,8 @@ export default function UserDashboard({ role }) {
                           <strong>Designation</strong>
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sortDirection={orderBy === 'email' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'email'}
-                          direction={orderBy === 'email' ? order : 'asc'}
-                          onClick={() => handleRequestSort('email')}
-                        >
-                          <strong>Email</strong>
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sortDirection={orderBy === 'phoneNumber' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'phoneNumber'}
-                          direction={orderBy === 'phoneNumber' ? order : 'asc'}
-                          onClick={() => handleRequestSort('phoneNumber')}
-                        >
-                          <strong>Phone Number</strong>
-                        </TableSortLabel>
-                      </TableCell>
+
+                      {/* 7) City */}
                       <TableCell sortDirection={orderBy === 'city' ? order : false}>
                         <TableSortLabel
                           active={orderBy === 'city'}
@@ -637,6 +737,8 @@ export default function UserDashboard({ role }) {
                           <strong>City</strong>
                         </TableSortLabel>
                       </TableCell>
+
+                      {/* 8) Segmentation */}
                       <TableCell sortDirection={orderBy === 'segmentation' ? order : false}>
                         <TableSortLabel
                           active={orderBy === 'segmentation'}
@@ -647,22 +749,33 @@ export default function UserDashboard({ role }) {
                         </TableSortLabel>
                       </TableCell>
 
-                      <TableCell><strong>Edit</strong></TableCell>
-                      <TableCell><strong>Delete</strong></TableCell>
+                      {/* 9) Email */}
+                      <TableCell sortDirection={orderBy === 'email' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'email'}
+                          direction={orderBy === 'email' ? order : 'asc'}
+                          onClick={() => handleRequestSort('email')}
+                        >
+                          <strong>Email</strong>
+                        </TableSortLabel>
+                      </TableCell>
+
+                      {/* 10) Phone Number */}
+                      <TableCell sortDirection={orderBy === 'phoneNumber' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'phoneNumber'}
+                          direction={orderBy === 'phoneNumber' ? order : 'asc'}
+                          onClick={() => handleRequestSort('phoneNumber')}
+                        >
+                          <strong>Phone Number</strong>
+                        </TableSortLabel>
+                      </TableCell>
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
-                    {currentTableData.map((record, idx) => (
-                      <TableRow key={idx} sx={{ height: '5px' }}>
-                        <TableCell>{record.customerName}</TableCell>
-                        <TableCell>{record.userName}</TableCell>
-                        <TableCell>{record.designation}</TableCell>
-                        <TableCell>{record.email}</TableCell>
-                        <TableCell>{record.phoneNumber}</TableCell>
-                        <TableCell>{record.city}</TableCell>
-                        <TableCell>{record.segmentation}</TableCell>
-
+                    {currentTableData.map((record) => (
+                      <TableRow key={record._id} sx={{ height: '5px' }}>
                         {/* Edit */}
                         <TableCell>
                           <IconButton size="small" onClick={() => handleEdit(record)}>
@@ -680,6 +793,30 @@ export default function UserDashboard({ role }) {
                             </motion.div>
                           </IconButton>
                         </TableCell>
+
+                        {/* Unique ID */}
+                        <TableCell>{record.uniqueId}</TableCell>
+
+                        {/* Customer Name */}
+                        <TableCell>{record.customerName}</TableCell>
+
+                        {/* User Name */}
+                        <TableCell>{record.userName}</TableCell>
+
+                        {/* Designation */}
+                        <TableCell>{record.designation}</TableCell>
+
+                        {/* City */}
+                        <TableCell>{record.city}</TableCell>
+
+                        {/* Segmentation */}
+                        <TableCell>{record.segmentation}</TableCell>
+
+                        {/* Email */}
+                        <TableCell>{record.email}</TableCell>
+
+                        {/* Phone Number */}
+                        <TableCell>{record.phoneNumber}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
