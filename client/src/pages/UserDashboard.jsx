@@ -19,15 +19,13 @@ import {
   TextField,
   InputAdornment,
   Pagination,
-  TableSortLabel,
   MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 
-// Icons
-import EditIcon from '@mui/icons-material/Edit';
+ import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
@@ -44,6 +42,9 @@ import ListIcon from '@mui/icons-material/List';
 // MUI Autocomplete
 import Autocomplete from '@mui/material/Autocomplete';
 
+/**
+ * Icon mapping object for InputAdornment.
+ */
 const iconMapping = {
   customerName: <PersonIcon />,
   userName: <BusinessIcon />,
@@ -55,7 +56,8 @@ const iconMapping = {
 };
 
 export default function UserDashboard({ role }) {
-  const [formData, setFormData] = useState({
+    // Form fields for creating or updating a record.
+   const [formData, setFormData] = useState({
     customerName: '',
     userName: '',
     designation: '',
@@ -65,55 +67,94 @@ export default function UserDashboard({ role }) {
     phoneNumber: ''
   });
 
-  const [searchResults, setSearchResults] = useState([]);
+   // The array of records displayed in the table (only after Search or View All).
+   const [searchResults, setSearchResults] = useState([]);
 
-  const [editing, setEditing] = useState(false);
+  
+  //  * Editing state: whether we're editing an existing record.
+   const [editing, setEditing] = useState(false);
+
+  
+  //  The _id of the record currently being edited.
+  
   const [currentRecordId, setCurrentRecordId] = useState(null);
 
-  // Popups
+  
+   //Modal for displaying success/error/warning messages.
+   
   const [modal, setModal] = useState({ open: false, message: '', severity: 'success' });
   const handleCloseModal = () => setModal({ ...modal, open: false });
 
-  // Pagination
+ 
+   //* Pagination states: current page and rows per page.
+    
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 7;
 
-  // Confirm "Delete All"
+ 
+   //"Delete All" confirmation dialog for admin.
+    
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const handleOpenDeleteAll = () => setDeleteAllOpen(true);
   const handleCloseDeleteAll = () => setDeleteAllOpen(false);
 
-  // Confirm row-level delete
+  
+   //"Delete single row" confirmation dialog.
+   
   const [deleteRowOpen, setDeleteRowOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
+  const handleDeleteRowClick = (record) => {
+    setRecordToDelete(record);
+    setDeleteRowOpen(true);
+  };
+  const handleCloseDeleteRow = () => {
+    setDeleteRowOpen(false);
+    setRecordToDelete(null);
+  };
 
-  // Sorting
-  const [order, setOrder] = useState('asc');
-  const [orderBy, setOrderBy] = useState('customerName');
-
-  // We'll also store **allRecords** in state (and localStorage) for local suggestions
-  const [allRecords, setAllRecords] = useState([]);
+   
+   //All records (fetched once on mount, for autocomplete suggestions).
   
-  // For on-the-fly autocomplete suggestions
+  const [allRecords, setAllRecords] = useState([]);
+
+  
+   // Autocomplete suggestions for customerName and userName.
+    
   const [customerNameSuggestions, setCustomerNameSuggestions] = useState([]);
   const [userNameSuggestions, setUserNameSuggestions] = useState([]);
 
-  // Fetch ALL records once on mount -> store in localStorage -> use for suggestions
+  /**
+   * On mount: fetch ALL records for local suggestions only (don't show them in the table).
+   * We store them in `allRecords` and localStorage, but do NOT set `searchResults`.
+   * This ensures the table is initially empty (hidden) until the user searches or admin clicks "View All".
+   */
   useEffect(() => {
-    handleViewAll(); // This sets searchResults and also allRecords
+    const fetchAllRecordsForSuggestions = async () => {
+      try {
+        const { data } = await axios.get('http://localhost:4000/api/records');
+        setAllRecords(data);
+        localStorage.setItem('allRecords', JSON.stringify(data));
+      } catch (error) {
+        console.error('Error fetching records for suggestions', error);
+      }
+    };
+    fetchAllRecordsForSuggestions();
   }, []);
 
-  // When allRecords changes, also save to localStorage
+   // Whenever allRecords changes, keep it in localStorage for autocomplete usage.
   useEffect(() => {
     localStorage.setItem('allRecords', JSON.stringify(allRecords));
   }, [allRecords]);
 
-  // ---------- CREATE / UPDATE ----------
+  /**
+   * Create or Update a record.
+   */
   const handleSubmit = async () => {
-    // Basic validations
+    // Basic validations (client-side).
     const nameRegex = /^[A-Za-z\s]+$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/; // "XXX-XXX-XXXX"
+    // phone format "XXX-XXX-XXXX"
+    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/;
 
     if (!formData.customerName || !nameRegex.test(formData.customerName)) {
       setModal({ open: true, message: 'Invalid Customer Name (letters/spaces only).', severity: 'error' });
@@ -148,18 +189,19 @@ export default function UserDashboard({ role }) {
       return;
     }
 
+    // Attempt to save or update.
     try {
       if (editing && currentRecordId) {
-        // Update existing
+        // Update existing record.
         await axios.put(`http://localhost:4000/api/records/${currentRecordId}`, formData);
         setModal({ open: true, message: 'Record updated successfully!', severity: 'success' });
       } else {
-        // Create new
+        // Create new record.
         await axios.post('http://localhost:4000/api/records', formData);
         setModal({ open: true, message: 'Record saved successfully!', severity: 'success' });
       }
 
-      // Reset form & state
+      // Reset form & editing state.
       setFormData({
         customerName: '',
         userName: '',
@@ -171,9 +213,16 @@ export default function UserDashboard({ role }) {
       });
       setEditing(false);
       setCurrentRecordId(null);
-
-      // Refresh results & local records
-      handleViewAll();
+ 
+      if (searchResults.length > 0) {
+         
+        if (role === 'admin') {
+          handleViewAll();
+        } else {
+           
+          handleSearch();
+        }
+      }
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
       setModal({
@@ -184,10 +233,10 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // ---------- SEARCH ----------
+  
   const handleSearch = async () => {
     try {
-      // Build query from non-empty form fields
+      // Build query from non-empty form fields.
       const nonEmptyData = Object.entries(formData)
         .filter(([_, value]) => value !== '')
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
@@ -202,8 +251,10 @@ export default function UserDashboard({ role }) {
 
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No matching records found!', severity: 'info' });
+        setSearchResults([]);  
+      } else {
+        setSearchResults(data);
       }
-      setSearchResults(data);
       setCurrentPage(1);
     } catch (error) {
       setModal({
@@ -214,18 +265,18 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // ---------- VIEW ALL ----------
+   
   const handleViewAll = async () => {
-    // This fetches all (non-deleted) records from the server
     try {
       const { data } = await axios.get('http://localhost:4000/api/records');
-      setSearchResults(data);
-      setAllRecords(data);
-      setCurrentPage(1);
-
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No users found!', severity: 'info' });
       }
+      // Show them in the table
+      setSearchResults(data);
+      // Also store them for suggestions if needed (optional).
+      setAllRecords(data);
+      setCurrentPage(1);
     } catch (error) {
       setModal({
         open: true,
@@ -234,8 +285,7 @@ export default function UserDashboard({ role }) {
       });
     }
   };
-
-  // ---------- EDIT ----------
+ 
   const handleEdit = (record) => {
     setFormData({
       customerName: record.customerName,
@@ -251,21 +301,14 @@ export default function UserDashboard({ role }) {
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
-  // ---------- DELETE (single) ----------
-  const handleDeleteRowClick = (record) => {
-    setRecordToDelete(record);
-    setDeleteRowOpen(true);
-  };
-  const handleCloseDeleteRow = () => {
-    setDeleteRowOpen(false);
-    setRecordToDelete(null);
-  };
+  
   const handleConfirmDeleteRow = async () => {
     if (recordToDelete) {
       try {
         await axios.delete(`http://localhost:4000/api/records/${recordToDelete._id}`);
-        setSearchResults((prev) => prev.filter((item) => item._id !== recordToDelete._id));
-        setAllRecords((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+         setSearchResults((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+         setAllRecords((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+
         setModal({ open: true, message: 'Record deleted successfully!', severity: 'success' });
       } catch (error) {
         setModal({
@@ -279,10 +322,11 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // ---------- DELETE ALL ----------
+   
   const handleConfirmDeleteAll = async () => {
     try {
-      await axios.delete('http://localhost:4000/api/records'); // deletes (soft-deletes) all
+      await axios.delete('http://localhost:4000/api/records');
+      // Clear table, suggestions
       setSearchResults([]);
       setAllRecords([]);
       setModal({ open: true, message: 'All records deleted successfully!', severity: 'success' });
@@ -297,7 +341,7 @@ export default function UserDashboard({ role }) {
     }
   };
 
-  // ---------- DOWNLOAD ----------
+  
   const handleDownload = () => {
     if (!searchResults || searchResults.length === 0) {
       setModal({ open: true, message: 'No data to download.', severity: 'warning' });
@@ -310,52 +354,30 @@ export default function UserDashboard({ role }) {
     setModal({ open: true, message: 'Search results downloaded successfully!', severity: 'success' });
   };
 
-  // ---------- PAGINATION ----------
+   
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
 
-  // ---------- SORTING ----------
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
-
-  const sortedResults = useMemo(() => {
-    const comparator = (a, b) => {
-      // Convert to string to handle numbers & strings
-      const valA = (a[orderBy] || '').toString().toLowerCase();
-      const valB = (b[orderBy] || '').toString().toLowerCase();
-
-      if (valA < valB) return order === 'asc' ? -1 : 1;
-      if (valA > valB) return order === 'asc' ? 1 : -1;
-      return 0;
-    };
-    return [...searchResults].sort(comparator);
-  }, [searchResults, order, orderBy]);
-
-  const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
+  
+  const totalPages = Math.ceil(searchResults.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
   const currentTableData = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    return sortedResults.slice(startIndex, endIndex);
-  }, [sortedResults, currentPage, rowsPerPage]);
+    return searchResults.slice(startIndex, endIndex);
+  }, [searchResults, startIndex, endIndex]);
 
-  // ---------- LOCAL AUTOCOMPLETE SUGGESTIONS ----------
-  // We'll filter from localStorage or from the allRecords state
+   
   const filterCustomerNameSuggestions = useCallback((input) => {
     if (!input) return [];
-    // Pull from localStorage OR from allRecords
     const data = JSON.parse(localStorage.getItem('allRecords')) || [];
-    // get distinct list of customerNames
     const distinctNames = [...new Set(data.map((r) => r.customerName))];
-    // return those that contain the input substring (case-insensitive)
     return distinctNames.filter((name) =>
       name.toLowerCase().includes(input.toLowerCase())
     );
   }, []);
 
+ 
   const filterUserNameSuggestions = useCallback((input) => {
     if (!input) return [];
     const data = JSON.parse(localStorage.getItem('allRecords')) || [];
@@ -365,14 +387,14 @@ export default function UserDashboard({ role }) {
     );
   }, []);
 
-  // Whenever user types in `customerName`, we update suggestions
+   
   const handleCustomerNameInputChange = (event, newInputValue) => {
     setFormData((prev) => ({ ...prev, customerName: newInputValue }));
     const suggestions = filterCustomerNameSuggestions(newInputValue);
     setCustomerNameSuggestions(suggestions);
   };
 
-  // Whenever user types in `userName`, we update suggestions
+   
   const handleUserNameInputChange = (event, newInputValue) => {
     setFormData((prev) => ({ ...prev, userName: newInputValue }));
     const suggestions = filterUserNameSuggestions(newInputValue);
@@ -380,12 +402,11 @@ export default function UserDashboard({ role }) {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden' , marginLeft: '-25px'}}>
-      <Box display="flex" gap="2%" >
+    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden', marginLeft: '-25px' }}>
+      <Box display="flex" gap="2%">
         {/* Left Panel: Contacts Entry Form */}
         <Box width="30%">
           <motion.div
-          
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
@@ -546,7 +567,7 @@ export default function UserDashboard({ role }) {
                 }}
               />
 
-              {/* Buttons */}
+              {/* Action Buttons */}
               <Box mt={2} display="flex" gap={2}>
                 <Button
                   size="small"
@@ -607,7 +628,7 @@ export default function UserDashboard({ role }) {
           </motion.div>
         </Box>
 
-        {/* Right Panel: Search Results */}
+        {/* Right Panel: Search Results (table appears only if we have data) */}
         <Box width="70%">
           {searchResults.length > 0 && (
             <Paper
@@ -620,7 +641,7 @@ export default function UserDashboard({ role }) {
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
             >
-              {/* Top row with Title, Filter/Buttons */}
+              {/* Top row with Title and buttons */}
               <Box
                 display="flex"
                 justifyContent="space-between"
@@ -628,7 +649,7 @@ export default function UserDashboard({ role }) {
                 mb={2}
                 sx={{ position: 'sticky', top: 0, background: 'inherit', zIndex: 1, pb: 1 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', marginTop: '18px' }}>
                   Search Results
                 </Typography>
                 <Box>
@@ -661,114 +682,47 @@ export default function UserDashboard({ role }) {
                     </Button>
                   )}
 
-                  {/* Clear search results */}
+                  {/* Clear Search Results */}
                   <IconButton size="small" onClick={() => setSearchResults([])}>
                     <CancelIcon />
                   </IconButton>
                 </Box>
               </Box>
 
-              {/* Table (10 columns) */}
+              {/* Table of results */}
               <TableContainer sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      {/* 1) Edit */}
                       <TableCell>
                         <strong>Edit</strong>
                       </TableCell>
-
-                      {/* 2) Delete */}
                       <TableCell>
                         <strong>Delete</strong>
                       </TableCell>
-
-                      {/* 3) Unique ID */}
-                      <TableCell sortDirection={orderBy === 'uniqueId' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'uniqueId'}
-                          direction={orderBy === 'uniqueId' ? order : 'asc'}
-                          onClick={() => handleRequestSort('uniqueId')}
-                        >
-                          <strong>Unique ID</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Unique ID</strong>
                       </TableCell>
-
-                      {/* 4) Customer Name */}
-                      <TableCell sortDirection={orderBy === 'customerName' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'customerName'}
-                          direction={orderBy === 'customerName' ? order : 'asc'}
-                          onClick={() => handleRequestSort('customerName')}
-                        >
-                          <strong>Customer Name</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Customer Name</strong>
                       </TableCell>
-
-                      {/* 5) User Name */}
-                      <TableCell sortDirection={orderBy === 'userName' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'userName'}
-                          direction={orderBy === 'userName' ? order : 'asc'}
-                          onClick={() => handleRequestSort('userName')}
-                        >
-                          <strong>User Name</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>User Name</strong>
                       </TableCell>
-
-                      {/* 6) Designation */}
-                      <TableCell sortDirection={orderBy === 'designation' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'designation'}
-                          direction={orderBy === 'designation' ? order : 'asc'}
-                          onClick={() => handleRequestSort('designation')}
-                        >
-                          <strong>Designation</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Designation</strong>
                       </TableCell>
-
-                      {/* 7) City */}
-                      <TableCell sortDirection={orderBy === 'city' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'city'}
-                          direction={orderBy === 'city' ? order : 'asc'}
-                          onClick={() => handleRequestSort('city')}
-                        >
-                          <strong>City</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>City</strong>
                       </TableCell>
-
-                      {/* 8) Segmentation */}
-                      <TableCell sortDirection={orderBy === 'segmentation' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'segmentation'}
-                          direction={orderBy === 'segmentation' ? order : 'asc'}
-                          onClick={() => handleRequestSort('segmentation')}
-                        >
-                          <strong>Segmentation</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Segmentation</strong>
                       </TableCell>
-
-                      {/* 9) Email */}
-                      <TableCell sortDirection={orderBy === 'email' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'email'}
-                          direction={orderBy === 'email' ? order : 'asc'}
-                          onClick={() => handleRequestSort('email')}
-                        >
-                          <strong>Email</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Email</strong>
                       </TableCell>
-
-                      {/* 10) Phone Number */}
-                      <TableCell sortDirection={orderBy === 'phoneNumber' ? order : false}>
-                        <TableSortLabel
-                          active={orderBy === 'phoneNumber'}
-                          direction={orderBy === 'phoneNumber' ? order : 'asc'}
-                          onClick={() => handleRequestSort('phoneNumber')}
-                        >
-                          <strong>Phone Number</strong>
-                        </TableSortLabel>
+                      <TableCell>
+                        <strong>Phone Number</strong>
                       </TableCell>
                     </TableRow>
                   </TableHead>
