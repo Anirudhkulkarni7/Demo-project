@@ -39,6 +39,8 @@ const recordSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   }
-});
+},
+{ versionKey: false });
+
 
 module.exports = mongoose.model('Record', recordSchema);

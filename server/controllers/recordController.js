@@ -1,9 +1,5 @@
 const Record = require('../models/Record');
-
-/**
- * Helper function to get the next auto-incremented ID.
- * Starts at 1234 if no records exist yet.
- */
+ 
 async function getNextUniqueId() {
   // Find the record with the highest uniqueId so far
   const lastRecord = await Record.findOne({})
@@ -19,20 +15,25 @@ async function getNextUniqueId() {
 // CREATE a new record
 exports.createRecord = async (req, res) => {
   try {
-    // 1) Check if customerName is already used by a non-deleted record (if you want uniqueness by name)
-    const existingCustomer = await Record.findOne({
-      customerName: req.body.customerName,
+    const { customerName, userName, email } = req.body;
+
+    // Ensure uniqueness for customerName + userName combination
+    const existingRecord = await Record.findOne({
+      customerName: customerName,
+      userName: userName,
       isDeleted: false
     });
-    if (existingCustomer) {
-      return res.status(400).json({ message: 'Customer Name is already in use.' });
+
+    if (existingRecord) {
+      return res.status(400).json({ message: 'This customer name and user name combination already exists.' });
     }
 
-    // 2) Check if email is already taken by a non-deleted record
+    // Ensure uniqueness for email
     const existingEmail = await Record.findOne({
-      email: req.body.email,
+      email: email,
       isDeleted: false
     });
+
     if (existingEmail) {
       return res.status(400).json({ message: 'Email is already in use.' });
     }
@@ -40,11 +41,12 @@ exports.createRecord = async (req, res) => {
     // Get next auto-incremented ID
     const newUniqueId = await getNextUniqueId();
 
-    // Create the new record with that uniqueId
+    // Create the new record
     const record = new Record({
       ...req.body,
       uniqueId: newUniqueId
     });
+
     await record.save();
 
     res.status(201).json(record);

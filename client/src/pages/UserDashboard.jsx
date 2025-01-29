@@ -629,7 +629,7 @@ export default function UserDashboard({ role }) {
         </Box>
 
         {/* Right Panel: Search Results (table appears only if we have data) */}
-        <Box width="70%" sx={{ marginLeft: '0', marginRight: '30x' }}>
+        <Box width="70%" sx={{ marginLeft: '0', marginRight: '0' }}>
         {searchResults.length > 0 && (
             <Paper
               elevation={6}
@@ -656,7 +656,7 @@ export default function UserDashboard({ role }) {
                 <Box>
                   {/* Delete All Button (Admin only) */}
                   {role === 'admin' && (
-                    <IconButton size="small" onClick={handleOpenDeleteAll} sx={{ mr: 1 }}>
+                    <IconButton size="small" onClick={handleOpenDeleteAll} sx={{ mr: 1 , marginTop: '18px'}}>
                       <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
                         <DeleteSweepIcon color="error" />
                       </motion.div>
@@ -672,6 +672,7 @@ export default function UserDashboard({ role }) {
                       onClick={handleDownload}
                       startIcon={<DownloadIcon />}
                       sx={{
+                        marginTop: '18px',
                         textTransform: 'none',
                         padding: '0.5rem 1rem',
                         borderRadius: '8px',
@@ -683,100 +684,139 @@ export default function UserDashboard({ role }) {
                     </Button>
                   )}
 
-                  {/* Clear Search Results */}
-                  <IconButton size="small" onClick={() => setSearchResults([])}>
-                    <CancelIcon />
-                  </IconButton>
+                                 <IconButton 
+                size="small" 
+                onClick={() => setSearchResults([])}
+                sx={{ marginTop: '18px', marginLeft: '10px' }}  
+              >
+                <CancelIcon />
+              </IconButton>
+
                 </Box>
               </Box>
 
               {/* Table of results */}
-              <TableContainer sx={{ maxHeight: '100vh', overflowY: 'auto' }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>
-                        <strong>Edit</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Delete</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Unique ID</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Customer Name</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>User Name</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Designation</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>City</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Segmentation</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Email</strong>
-                      </TableCell>
-                      <TableCell>
-                        <strong>Phone Number</strong>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
+              <TableContainer sx={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'auto' }}>
+  <Table size="small" stickyHeader>
+  <TableHead>
+  <TableRow>
+    {/* Sticky Edit Header */}
+    <TableCell
+      sx={{
+        position: 'sticky',
+        left: 0,
+        background: 'white',
+        zIndex: 3,
+        minWidth: '40px',
+        maxWidth: '40px',
+        textAlign: 'center',
+      }}
+    >
+      <strong>Edit</strong>
+    </TableCell>
 
-                  <TableBody>
-                    {currentTableData.map((record) => (
-                      <TableRow key={record._id} sx={{ height: '5px' }}>
-                        {/* Edit */}
-                        <TableCell>
-                          <IconButton size="small" onClick={() => handleEdit(record)}>
-                            <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
-                              <EditIcon />
-                            </motion.div>
-                          </IconButton>
-                        </TableCell>
+    {/* Sticky Delete Header */}
+    <TableCell
+      sx={{
+        position: 'sticky',
+        left: '40px',
+        background: 'white',
+        zIndex: 3,
+        minWidth: '40px',
+        maxWidth: '40px',
+        textAlign: 'center',
+      }}
+    >
+      <strong>Delete</strong>
+    </TableCell>
 
-                        {/* Delete */}
-                        <TableCell>
-                          <IconButton size="small" onClick={() => handleDeleteRowClick(record)}>
-                            <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
-                              <DeleteIcon color="error" />
-                            </motion.div>
-                          </IconButton>
-                        </TableCell>
+    {/* Other Header Cells */}
+    <TableCell>
+      <strong>Unique ID</strong>
+    </TableCell>
+    <TableCell>
+      <strong>Customer Name</strong>
+    </TableCell>
+    <TableCell>
+      <strong>User Name</strong>
+    </TableCell>
+    <TableCell>
+      <strong>Designation</strong>
+    </TableCell>
+    <TableCell>
+      <strong>City</strong>
+    </TableCell>
+    <TableCell>
+      <strong>Segmentation</strong>
+    </TableCell>
+    <TableCell>
+      <strong>Email</strong>
+    </TableCell>
+    <TableCell>
+      <strong>Phone Number</strong>
+    </TableCell>
+  </TableRow>
+</TableHead>
 
-                        {/* Unique ID */}
-                        <TableCell>{record.uniqueId}</TableCell>
 
-                        {/* Customer Name */}
-                        <TableCell>{record.customerName}</TableCell>
+<TableBody>
+  {currentTableData.map((record) => (
+    <TableRow key={record._id} sx={{ height: '5px' }}>
+      
+      {/* Sticky Edit Cell */}
+      <TableCell
+        sx={{
+          position: 'sticky',
+          left: 0,
+          background: 'white',
+          zIndex: 1,
+          minWidth: '40px',
+          maxWidth: '40px',
+          textAlign: 'center',
+        }}
+      >
+        <IconButton size="small" onClick={() => handleEdit(record)}>
+          <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+            <EditIcon fontSize="small" />
+          </motion.div>
+        </IconButton>
+      </TableCell>
 
-                        {/* User Name */}
-                        <TableCell>{record.userName}</TableCell>
+      {/* Sticky Delete Cell */}
+      <TableCell
+        sx={{
+          position: 'sticky',
+          left: '40px',
+          background: 'white',
+          zIndex: 1,
+          minWidth: '40px',
+          maxWidth: '40px',
+          textAlign: 'center',
+        }}
+      >
+        <IconButton size="small" onClick={() => handleDeleteRowClick(record)}>
+          <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+            <DeleteIcon color="error" fontSize="small" />
+          </motion.div>
+        </IconButton>
+      </TableCell>
 
-                        {/* Designation */}
-                        <TableCell>{record.designation}</TableCell>
+      {/* Other Body Cells */}
+      <TableCell>{record.uniqueId}</TableCell>
+      <TableCell>{record.customerName}</TableCell>
+      <TableCell>{record.userName}</TableCell>
+      <TableCell>{record.designation}</TableCell>
+      <TableCell>{record.city}</TableCell>
+      <TableCell>{record.segmentation}</TableCell>
+      <TableCell>{record.email}</TableCell>
+      <TableCell>{record.phoneNumber}</TableCell>
+    </TableRow>
+  ))}
+</TableBody>
 
-                        {/* City */}
-                        <TableCell>{record.city}</TableCell>
+  </Table>
+</TableContainer>
 
-                        {/* Segmentation */}
-                        <TableCell>{record.segmentation}</TableCell>
-
-                        {/* Email */}
-                        <TableCell>{record.email}</TableCell>
-
-                        {/* Phone Number */}
-                        <TableCell>{record.phoneNumber}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
 
               {/* Pagination at bottom-right */}
               <Box display="flex" justifyContent="flex-end" mt={2}>
