@@ -89,7 +89,7 @@ export default function UserDashboard({ role }) {
    //* Pagination states: current page and rows per page.
     
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 7;
+  const rowsPerPage = 10;
 
  
    //"Delete All" confirmation dialog for admin.
@@ -402,10 +402,10 @@ export default function UserDashboard({ role }) {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden', marginLeft: '-25px' }}>
-      <Box display="flex" gap="2%">
+    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden', marginLeft: '-20px' , height: 'auto'}}>
+      <Box display="flex" gap="1%">
         {/* Left Panel: Contacts Entry Form */}
-        <Box width="30%">
+        <Box width="27%">
           <motion.div
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -629,14 +629,15 @@ export default function UserDashboard({ role }) {
         </Box>
 
         {/* Right Panel: Search Results (table appears only if we have data) */}
-        <Box width="70%">
-          {searchResults.length > 0 && (
+        <Box width="70%" sx={{ marginLeft: '0', marginRight: '30x' }}>
+        {searchResults.length > 0 && (
             <Paper
               elevation={6}
               sx={{
-                marginRight: '-20px',
+                // height: 'auto',
+                marginRight: '-48px',
                 marginTop: '-1rem',
-                padding: '0.4rem',
+                padding: '0.6rem',
                 borderRadius: '0px',
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
@@ -690,7 +691,7 @@ export default function UserDashboard({ role }) {
               </Box>
 
               {/* Table of results */}
-              <TableContainer sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
+              <TableContainer sx={{ maxHeight: '100vh', overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
