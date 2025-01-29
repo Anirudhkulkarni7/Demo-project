@@ -1,3 +1,4 @@
+// src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import {
   TextField,
@@ -20,6 +21,7 @@ export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('error');
@@ -34,7 +36,7 @@ export default function LoginPage({ onLogin }) {
   };
 
   const handleSubmit = async () => {
-     if (!username || !password) {
+    if (!username || !password) {
       setSnackbarMessage('Please fill in all details');
       setSnackbarSeverity('warning');
       setSnackbarOpen(true);
@@ -42,12 +44,18 @@ export default function LoginPage({ onLogin }) {
     }
 
     try {
-      await axios.post('http://localhost:4000/api/auth/login', {
+      const response = await axios.post('http://localhost:4000/api/auth/login', {
         username,
         password
       });
-       onLogin();
-       navigate('/user', { replace: true });
+
+      // The backend should return { role: 'admin' } or { role: 'user' }
+      const { role } = response.data;
+
+      // Tell App that the user is logged in with this role
+      onLogin(role);
+
+      navigate('/user', { replace: true });
     } catch (error) {
       setSnackbarMessage(error.response?.data?.message || 'Login failed');
       setSnackbarSeverity('error');
@@ -120,10 +128,6 @@ export default function LoginPage({ onLogin }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             variant="outlined"
-            sx={{
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              borderRadius: '4px'
-            }}
           />
 
           <TextField
@@ -134,10 +138,6 @@ export default function LoginPage({ onLogin }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             variant="outlined"
-            sx={{
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              borderRadius: '4px'
-            }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -159,13 +159,8 @@ export default function LoginPage({ onLogin }) {
               padding: '0.75rem',
               borderRadius: '4px',
               fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)',
-              boxShadow: '0px 4px 20px rgba(33,203,243,0.3)',
               marginRight: 'auto',
-              textTransform: 'none',
-              '&:hover': {
-                background: 'linear-gradient(45deg, #21cbf3 30%, #2196f3 90%)'
-              }
+              textTransform: 'none'
             }}
           >
             Sign In
@@ -190,4 +185,3 @@ export default function LoginPage({ onLogin }) {
     </Container>
   );
 }
- 

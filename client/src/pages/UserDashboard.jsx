@@ -1,3 +1,4 @@
+// src/pages/UserDashboard.jsx
 import React, { useState, useMemo } from 'react';
 import {
   Container,
@@ -16,12 +17,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  ThemeProvider,
-  createTheme,
   TextField,
   InputAdornment,
   Pagination,
-  TableSortLabel
+  TableSortLabel,
+  MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -33,98 +33,47 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import DownloadIcon from '@mui/icons-material/Download';
 import PeopleIcon from '@mui/icons-material/People';
-import RefreshIcon from '@mui/icons-material/Refresh';
-
-import { JsonForms } from '@jsonforms/react';
-import { materialRenderers, materialCells } from '@jsonforms/material-renderers';
-import { rankWith, isStringControl } from '@jsonforms/core';
-import { withJsonFormsControlProps } from '@jsonforms/react';
+// import RefreshIcon from '@mui/icons-material/Refresh';
 
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
+import WorkIcon from '@mui/icons-material/Work';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
+import LocationCityIcon from '@mui/icons-material/LocationCity';
+import ListIcon from '@mui/icons-material/List';
 
-
-const iconMapping = {
-  name: <PersonIcon />,
-  companyName: <BusinessIcon />,
+ const iconMapping = {
+  CompanyName: <PersonIcon />,
+  userName: <BusinessIcon />,
+  designation: <WorkIcon />,
   email: <EmailIcon />,
-  phone: <PhoneIcon />
+  phoneNumber: <PhoneIcon />,
+  city: <LocationCityIcon />,
+  segmentation: <ListIcon />
 };
 
-// Custom renderer for JSON Forms
-const CustomControl = (props) => {
-  const { data, handleChange, path, errors, visible, label } = props;
-  if (!visible) return null;
+export default function UserDashboard({ role }) {
+  const [formData, setFormData] = useState({
+    companyName: '',
+    userName: '',
+    designation: '',
+    email: '',
+    phoneNumber: '',
+    city: '',
+    segmentation: ''
+  });
 
-  const onChange = (ev) => handleChange(path, ev.target.value);
-  const displayError = errors && !errors.includes('is a required property') ? errors : '';
-
-  return (
-    <TextField 
-      label={label}
-      value={data || ''}
-      onChange={onChange}
-      error={!!errors && displayError !== ''}
-      helperText={displayError}
-      fullWidth
-      margin="normal"
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            {iconMapping[path.split('.').pop()] || null}
-          </InputAdornment>
-        )
-      }}
-    />
-  );
-};
-
-const customTester = rankWith(4, isStringControl);
-const CustomRenderer = withJsonFormsControlProps(CustomControl);
-
-const schema = {
-  type: "object",
-  properties: {
-    name: { type: "string", pattern: "^[A-Za-z\\s]+$" },
-    companyName: { type: "string", pattern: "^[A-Za-z\\s]+$" },
-    email: { type: "string", format: "email" },
-    phone: { type: "string" }
-  },
-  required: [ "name", "companyName", "email", "phone" ]
-};
-
-const uischema = {
-  type: "VerticalLayout",
-  elements: [
-    { type: "Control", scope: "#/properties/name" },
-    { type: "Control", scope: "#/properties/companyName" },
-    { type: "Control", scope: "#/properties/email" },
-    { type: "Control", scope: "#/properties/phone" }
-  ]
-};
-
-const smallTheme = createTheme({
-  components: {
-    MuiTextField: {
-      defaultProps: { size: 'large' }
-    }
-  },
-});
-
-export default function UserDashboard() {
-  const [formData, setFormData] = useState({});
   const [searchResults, setSearchResults] = useState([]);
 
   const [editing, setEditing] = useState(false);
   const [currentRecordId, setCurrentRecordId] = useState(null);
-  
-  // For popups
+
+  // Popups
   const [modal, setModal] = useState({ open: false, message: '', severity: 'success' });
   const handleCloseModal = () => setModal({ ...modal, open: false });
 
-  // For pagination
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 7;
 
@@ -137,31 +86,28 @@ export default function UserDashboard() {
   const [deleteRowOpen, setDeleteRowOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
 
-  // -- Sorting
+  // Sorting
   const [order, setOrder] = useState('asc');
-  const [orderBy, setOrderBy] = useState('name');
+  const [orderBy, setOrderBy] = useState('customerName');
 
+  // Sorting function
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
   };
 
-  // Function to sort data
+  // Sort results
   const sortedResults = useMemo(() => {
     const comparator = (a, b) => {
-      if (a[orderBy] < b[orderBy]) {
-        return order === 'asc' ? -1 : 1;
-      }
-      if (a[orderBy] > b[orderBy]) {
-        return order === 'asc' ? 1 : -1;
-      }
+      if (a[orderBy] < b[orderBy]) return order === 'asc' ? -1 : 1;
+      if (a[orderBy] > b[orderBy]) return order === 'asc' ? 1 : -1;
       return 0;
     };
     return [...searchResults].sort(comparator);
   }, [searchResults, order, orderBy]);
 
-  // Pagination calculations
+  // Paginate
   const totalPages = Math.ceil(sortedResults.length / rowsPerPage);
   const currentTableData = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -169,52 +115,68 @@ export default function UserDashboard() {
     return sortedResults.slice(startIndex, endIndex);
   }, [sortedResults, currentPage]);
 
-  // -- CREATE/UPDATE record
+  // CREATE/UPDATE
   const handleSubmit = async () => {
-    const nameRegex = /^[A-Za-z\s]+$/;
-    const companyRegex = /^[A-Za-z\s]+$/;
+    // Basic validations
+    const nameRegex = /^[A-Za-z\s]+$/; 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^\d{3}-\d{3}-\d{4}$/;
 
-    if (!formData.name || !nameRegex.test(formData.name)) {
-      setModal({ open: true, message: 'Invalid name. Should contain only letters and spaces.', severity: 'error' });
+    if (!formData.customerName || !nameRegex.test(formData.customerName)) {
+      setModal({ open: true, message: 'Invalid Customer Name (letters/spaces only).', severity: 'error' });
       return;
     }
-    if (!formData.companyName || !companyRegex.test(formData.companyName)) {
-      setModal({ open: true, message: 'Invalid company name. Should contain only letters and spaces.', severity: 'error' });
+    if (!formData.userName || !nameRegex.test(formData.userName)) {
+      setModal({ open: true, message: 'Invalid User Name (letters/spaces only).', severity: 'error' });
+      return;
+    }
+    if (!formData.designation || !nameRegex.test(formData.designation)) {
+      setModal({ open: true, message: 'Invalid Designation (letters/spaces only).', severity: 'error' });
       return;
     }
     if (!formData.email || !emailRegex.test(formData.email)) {
-      setModal({ open: true, message: 'Invalid email.', severity: 'error' });
+      setModal({ open: true, message: 'Invalid Email.', severity: 'error' });
       return;
     }
-    if (!formData.phone || !phoneRegex.test(formData.phone)) {
-      setModal({
-        open: true,
-        message: 'Invalid phone number. Please enter a phone number in the format XXX-XXX-XXXX.',
-        severity: 'error'
+    if (!formData.phoneNumber || !phoneRegex.test(formData.phoneNumber)) {
+      setModal({ 
+        open: true, 
+        message: 'Invalid phone number. Expected format: XXX-XXX-XXXX.', 
+        severity: 'error' 
       });
+      return;
+    }
+    if (!formData.city || !nameRegex.test(formData.city)) {
+      setModal({ open: true, message: 'Invalid City (letters/spaces only).', severity: 'error' });
+      return;
+    }
+    if (!formData.segmentation) {
+      setModal({ open: true, message: 'Please select a segmentation.', severity: 'error' });
       return;
     }
 
     try {
       if (editing && currentRecordId) {
-        // Update existing record
         await axios.put(`http://localhost:4000/api/records/${currentRecordId}`, formData);
         setModal({ open: true, message: 'Record updated successfully!', severity: 'success' });
       } else {
-        // Create new record
         await axios.post('http://localhost:4000/api/records', formData);
         setModal({ open: true, message: 'Record saved successfully!', severity: 'success' });
       }
-      // Clear form & reset states
-      setFormData({});
+
+      setFormData({
+        customerName: '',
+        userName: '',
+        designation: '',
+        email: '',
+        phoneNumber: '',
+        city: '',
+        segmentation: ''
+      });
       setEditing(false);
       setCurrentRecordId(null);
 
-      // Refresh to show the new/updated data (if needed or if table is showing)
       handleViewAll();
-
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
       setModal({
@@ -225,12 +187,11 @@ export default function UserDashboard() {
     }
   };
 
-  // -- SEARCH by any field(s)
+  // SEARCH
   const handleSearch = async () => {
     try {
-      // get all non-empty fields from formData
       const nonEmptyData = Object.entries(formData)
-        .filter(([_, value]) => value !== undefined && value !== '')
+        .filter(([_, value]) => value !== '')
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
       if (Object.keys(nonEmptyData).length === 0) {
@@ -240,10 +201,10 @@ export default function UserDashboard() {
 
       const queryString = new URLSearchParams(nonEmptyData).toString();
       const { data } = await axios.get(`http://localhost:4000/api/records/search?${queryString}`);
-      
+
       if (!data || data.length === 0) {
         setModal({ open: true, message: 'No matching records found!', severity: 'info' });
-      } 
+      }
       setSearchResults(data);
       setCurrentPage(1);
     } catch (error) {
@@ -255,7 +216,7 @@ export default function UserDashboard() {
     }
   };
 
-  // -- VIEW ALL
+  // VIEW ALL
   const handleViewAll = async () => {
     try {
       const { data } = await axios.get('http://localhost:4000/api/records');
@@ -274,7 +235,7 @@ export default function UserDashboard() {
     }
   };
 
-  // -- EDIT
+  // EDIT
   const handleEdit = (record) => {
     setFormData(record);
     setEditing(true);
@@ -282,22 +243,20 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
-  // -- Row-Level Delete
+  // Row-level Delete
   const handleDeleteRowClick = (record) => {
     setRecordToDelete(record);
     setDeleteRowOpen(true);
   };
-
   const handleCloseDeleteRow = () => {
     setDeleteRowOpen(false);
     setRecordToDelete(null);
   };
-
   const handleConfirmDeleteRow = async () => {
     if (recordToDelete) {
       try {
         await axios.delete(`http://localhost:4000/api/records/${recordToDelete._id}`);
-        setSearchResults((prev) => prev.filter((item) => item._id !== recordToDelete._id));
+        setSearchResults(prev => prev.filter(item => item._id !== recordToDelete._id));
         setModal({ open: true, message: 'Record deleted successfully!', severity: 'success' });
       } catch (error) {
         setModal({
@@ -311,7 +270,7 @@ export default function UserDashboard() {
     }
   };
 
-  // -- DELETE ALL
+  // DELETE ALL
   const handleConfirmDeleteAll = async () => {
     try {
       await axios.delete('http://localhost:4000/api/records');
@@ -328,7 +287,7 @@ export default function UserDashboard() {
     }
   };
 
-  // -- DOWNLOAD
+  // DOWNLOAD
   const handleDownload = () => {
     if (!searchResults || searchResults.length === 0) {
       setModal({ open: true, message: 'No data to download.', severity: 'warning' });
@@ -341,12 +300,8 @@ export default function UserDashboard() {
     setModal({ open: true, message: 'Search results downloaded successfully!', severity: 'success' });
   };
 
-  // -- REFRESH (simply re-calls handleViewAll)
-  const handleRefresh = () => {
-    handleViewAll();
-  };
-
-  // -- Pagination
+ 
+  // Page change
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
@@ -354,11 +309,11 @@ export default function UserDashboard() {
   return (
     <Container maxWidth="xl" sx={{ marginTop: '2rem', overflow: 'hidden' }}>
       <Box display="flex" gap="2%">
-        {/* Left Panel: JSONForms Form */}
+        {/* Left Panel: Contacts Entry Form */}
         <Box width="30%">
-          <motion.div 
-            initial={{ y: -50, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
           >
             <Paper 
@@ -367,24 +322,133 @@ export default function UserDashboard() {
                 padding: '1.2rem', 
                 borderRadius: '0px', 
                 background: 'rgba(255,255,255,0.85)',
-                border: '1px solid rgba(0,0,0,0.1)'  
+                border: '1px solid rgba(0,0,0,0.1)'
               }}
             >
-              <Box mb={2}>
-                <ThemeProvider theme={smallTheme}>
-                  <JsonForms
-                    schema={schema}
-                    uischema={uischema}
-                    data={formData}
-                    renderers={[{ tester: customTester, renderer: CustomRenderer }, ...materialRenderers]}
-                    cells={materialCells}
-                    onChange={({ data }) => setFormData(data)}
-                  />
-                </ThemeProvider>
-              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Contacts Entry Form
+              </Typography>
 
+              {/* Customer Name */}
+              <TextField
+                label="Customer Name"
+                value={formData.customerName}
+                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.customerName}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* User Name */}
+              <TextField
+                label="User Name"
+                value={formData.userName}
+                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.userName}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* Designation */}
+              <TextField
+                label="Designation"
+                value={formData.designation}
+                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.designation}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* Email */}
+              <TextField
+                label="Email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.email}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* Phone Number */}
+              <TextField
+                label="Phone Number (XXX-XXX-XXXX)"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.phoneNumber}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* City */}
+              <TextField
+                label="City"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.city}
+                    </InputAdornment>
+                  )
+                }}
+              />
+
+              {/* Segmentation (Dropdown) */}
+              <TextField
+                select
+                label="Segmentation"
+                value={formData.segmentation}
+                onChange={(e) => setFormData({ ...formData, segmentation: e.target.value })}
+                fullWidth
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {iconMapping.segmentation}
+                    </InputAdornment>
+                  )
+                }}
+              >
+                <MenuItem value="LE">LE (Large Enterprise)</MenuItem>
+                <MenuItem value="MM">MM (Mid Market)</MenuItem>
+                <MenuItem value="SB">SB (Small Business)</MenuItem>
+                <MenuItem value="ACQ">ACQ (Acquisition)</MenuItem>
+              </TextField>
+
+              {/* Buttons */}
               <Box mt={2} display="flex" gap={2}>
-                {/* Save/Update Button */}
                 <Button
                   size="small"
                   variant="contained"
@@ -400,7 +464,6 @@ export default function UserDashboard() {
                   {editing ? 'Update' : 'Save'}
                 </Button>
 
-                {/* Search Button */}
                 <Button
                   size="small"
                   variant="contained"
@@ -416,22 +479,24 @@ export default function UserDashboard() {
                   Search
                 </Button>
 
-                {/* View All Button */}
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="primary"
-                  onClick={handleViewAll}
-                  startIcon={<PeopleIcon />} 
-                  sx={{
-                    textTransform: 'none',
-                    padding: '0.2rem 1rem',
-                    borderRadius: '8px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  View All 
-                </Button>
+                {/* "View All" only for Admin */}
+                {role === 'admin' && (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="primary"
+                    onClick={handleViewAll}
+                    startIcon={<PeopleIcon />}
+                    sx={{
+                      textTransform: 'none',
+                      padding: '0.2rem 1rem',
+                      borderRadius: '8px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    View All
+                  </Button>
+                )}
               </Box>
 
               <Box display="flex" justifyContent="flex-end" mt={2}>
@@ -444,80 +509,69 @@ export default function UserDashboard() {
         </Box>
 
         {/* Right Panel: Search Results */}
-        <Box width="70%"> 
+        <Box width="70%">
           {searchResults.length > 0 && (
-            <Paper 
+            <Paper
               elevation={6}
-              sx={{ 
+              sx={{
                 marginTop: '-1rem',
-                padding: '0.6rem', 
+                padding: '0.6rem',
                 borderRadius: '0px',
                 border: '1px solid rgba(0,0,0,0.1)'
               }}
             >
               {/* Top row with Title, Filter/Buttons */}
-              <Box 
-                display="flex" 
-                justifyContent="space-between" 
-                alignItems="center" 
-                mb={2} 
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
                 sx={{ position: 'sticky', top: 0, background: 'inherit', zIndex: 1, pb: 1 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                   Search Results
                 </Typography>
                 <Box>
-                  {/* Refresh Button */}
-                  <IconButton 
-                    size="small" 
-                    onClick={handleRefresh}
-                    sx={{ mr: 1 }}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
+                  {/* Refresh Button (Admin only, if desired) */}
+                  {/* {role === 'admin' && (
+                    <IconButton size="small" onClick={handleRefresh} sx={{ mr: 1 }}>
+                      <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+                        <RefreshIcon />
+                      </motion.div>
+                    </IconButton>
+                  )} */}
+
+                  {/* Delete All Button (Admin only) */}
+                  {role === 'admin' && (
+                    <IconButton size="small" onClick={handleOpenDeleteAll} sx={{ mr: 1 }}>
+                      <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+                        <DeleteSweepIcon color="error" />
+                      </motion.div>
+                    </IconButton>
+                  )}
+
+                  {/* Download Excel (Admin only) */}
+                  {role === 'admin' && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      onClick={handleDownload}
+                      startIcon={<DownloadIcon />}
+                      sx={{
+                        textTransform: 'none',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        mr: 1
+                      }}
                     >
-                      <RefreshIcon />
-                    </motion.div>
-                  </IconButton>
+                      Download To Excel
+                    </Button>
+                  )}
 
-                  {/* Delete All Button */}
-                  <IconButton 
-                    size="small" 
-                    onClick={handleOpenDeleteAll}
-                    sx={{ mr: 1 }}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <DeleteSweepIcon color="error" />
-                    </motion.div>
-                  </IconButton>
-
-                  {/* Download Excel Button */}
-                  <Button 
-                    size="small" 
-                    variant="contained" 
-                    color="primary"
-                    onClick={handleDownload}
-                    startIcon={<DownloadIcon />}
-                    sx={{ 
-                      textTransform: 'none', 
-                      padding: '0.5rem 1rem',
-                      borderRadius: '8px',
-                      fontWeight: 'bold',
-                      mr: 1 
-                    }}
-                  > 
-                    Download To Excel
-                  </Button>
-
-                  {/* Clear Search Results */}
-                  <IconButton 
-                    size="small" 
-                    onClick={() => setSearchResults([])}
-                  >
+                  {/* Clear search results */}
+                  <IconButton size="small" onClick={() => setSearchResults([])}>
                     <CancelIcon />
                   </IconButton>
                 </Box>
@@ -528,22 +582,32 @@ export default function UserDashboard() {
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell sortDirection={orderBy === 'name' ? order : false}>
+                      {/* 7 columns */}
+                      <TableCell sortDirection={orderBy === 'customerName' ? order : false}>
                         <TableSortLabel
-                          active={orderBy === 'name'}
-                          direction={orderBy === 'name' ? order : 'asc'}
-                          onClick={() => handleRequestSort('name')}
+                          active={orderBy === 'customerName'}
+                          direction={orderBy === 'customerName' ? order : 'asc'}
+                          onClick={() => handleRequestSort('customerName')}
                         >
-                          <strong>Name</strong>
+                          <strong>Customer Name</strong>
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sortDirection={orderBy === 'companyName' ? order : false}>
+                      <TableCell sortDirection={orderBy === 'userName' ? order : false}>
                         <TableSortLabel
-                          active={orderBy === 'companyName'}
-                          direction={orderBy === 'companyName' ? order : 'asc'}
-                          onClick={() => handleRequestSort('companyName')}
+                          active={orderBy === 'userName'}
+                          direction={orderBy === 'userName' ? order : 'asc'}
+                          onClick={() => handleRequestSort('userName')}
                         >
-                          <strong>Company Name</strong>
+                          <strong>User Name</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sortDirection={orderBy === 'designation' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'designation'}
+                          direction={orderBy === 'designation' ? order : 'asc'}
+                          onClick={() => handleRequestSort('designation')}
+                        >
+                          <strong>Designation</strong>
                         </TableSortLabel>
                       </TableCell>
                       <TableCell sortDirection={orderBy === 'email' ? order : false}>
@@ -555,15 +619,34 @@ export default function UserDashboard() {
                           <strong>Email</strong>
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sortDirection={orderBy === 'phone' ? order : false}>
+                      <TableCell sortDirection={orderBy === 'phoneNumber' ? order : false}>
                         <TableSortLabel
-                          active={orderBy === 'phone'}
-                          direction={orderBy === 'phone' ? order : 'asc'}
-                          onClick={() => handleRequestSort('phone')}
+                          active={orderBy === 'phoneNumber'}
+                          direction={orderBy === 'phoneNumber' ? order : 'asc'}
+                          onClick={() => handleRequestSort('phoneNumber')}
                         >
                           <strong>Phone Number</strong>
                         </TableSortLabel>
                       </TableCell>
+                      <TableCell sortDirection={orderBy === 'city' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'city'}
+                          direction={orderBy === 'city' ? order : 'asc'}
+                          onClick={() => handleRequestSort('city')}
+                        >
+                          <strong>City</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sortDirection={orderBy === 'segmentation' ? order : false}>
+                        <TableSortLabel
+                          active={orderBy === 'segmentation'}
+                          direction={orderBy === 'segmentation' ? order : 'asc'}
+                          onClick={() => handleRequestSort('segmentation')}
+                        >
+                          <strong>Segmentation</strong>
+                        </TableSortLabel>
+                      </TableCell>
+
                       <TableCell><strong>Edit</strong></TableCell>
                       <TableCell><strong>Delete</strong></TableCell>
                     </TableRow>
@@ -572,26 +655,27 @@ export default function UserDashboard() {
                   <TableBody>
                     {currentTableData.map((record, idx) => (
                       <TableRow key={idx} sx={{ height: '5px' }}>
-                        <TableCell>{record.name}</TableCell>
-                        <TableCell>{record.companyName}</TableCell>
+                        <TableCell>{record.customerName}</TableCell>
+                        <TableCell>{record.userName}</TableCell>
+                        <TableCell>{record.designation}</TableCell>
                         <TableCell>{record.email}</TableCell>
-                        <TableCell>{record.phone}</TableCell>
+                        <TableCell>{record.phoneNumber}</TableCell>
+                        <TableCell>{record.city}</TableCell>
+                        <TableCell>{record.segmentation}</TableCell>
+
+                        {/* Edit */}
                         <TableCell>
                           <IconButton size="small" onClick={() => handleEdit(record)}>
-                            <motion.div
-                              whileHover={{ scale: 1.2 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
+                            <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
                               <EditIcon />
                             </motion.div>
                           </IconButton>
                         </TableCell>
+
+                        {/* Delete */}
                         <TableCell>
                           <IconButton size="small" onClick={() => handleDeleteRowClick(record)}>
-                            <motion.div
-                              whileHover={{ scale: 1.2 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
+                            <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
                               <DeleteIcon color="error" />
                             </motion.div>
                           </IconButton>
@@ -618,11 +702,7 @@ export default function UserDashboard() {
       </Box>
 
       {/* Popup dialog for messages */}
-      <Dialog 
-        open={modal.open} 
-        onClose={handleCloseModal}
-        maxWidth="xs"
-      >
+      <Dialog open={modal.open} onClose={handleCloseModal} maxWidth="xs">
         <DialogTitle>
           {modal.severity.charAt(0).toUpperCase() + modal.severity.slice(1)}
         </DialogTitle>
@@ -632,39 +712,35 @@ export default function UserDashboard() {
         <DialogActions>
           <Button onClick={handleCloseModal} autoFocus>
             OK
-          </Button> 
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Confirmation dialog for "Delete All" */}
-      <Dialog
-        open={deleteAllOpen}
-        onClose={handleCloseDeleteAll}
-        maxWidth="xs"
-      >
+      <Dialog open={deleteAllOpen} onClose={handleCloseDeleteAll} maxWidth="xs">
         <DialogTitle>Confirm Delete All</DialogTitle>
         <DialogContent>
           <Typography>Are you sure you want to delete all records?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteAll} autoFocus>No</Button>
-          <Button onClick={handleConfirmDeleteAll} color="error">Yes, Delete All</Button>
+          <Button onClick={handleConfirmDeleteAll} color="error">
+            Yes, Delete All
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Confirmation dialog for row-level delete */}
-      <Dialog
-        open={deleteRowOpen}
-        onClose={handleCloseDeleteRow}
-        maxWidth="xs"
-      >
+      <Dialog open={deleteRowOpen} onClose={handleCloseDeleteRow} maxWidth="xs">
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>Are you sure you want to delete this user?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteRow} autoFocus>No</Button>
-          <Button onClick={handleConfirmDeleteRow} color="error">Yes, Delete</Button>
+          <Button onClick={handleConfirmDeleteRow} color="error">
+            Yes, Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

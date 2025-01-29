@@ -1,16 +1,40 @@
 const mongoose = require('mongoose');
 
- if (mongoose.models.Record) {
-  delete mongoose.models.Record;
-}
-
- const recordSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  companyName: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: { type: String, required: true }
-}, {
-  versionKey: false
+const recordSchema = new mongoose.Schema({
+  customerName: {
+    type: String,
+    required: true
+  },
+  userName: {
+    type: String,
+    required: true
+  },
+  designation: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  phoneNumber: {
+    type: String,
+    required: true
+  },
+  city: {
+    type: String,
+    required: true
+  },
+  segmentation: {
+    type: String,
+    enum: ['LE', 'MM', 'SB', 'ACQ'],
+    required: true
+  },
+   isDeleted: {
+    type: Boolean,
+    default: false
+  }
 });
 
 module.exports = mongoose.model('Record', recordSchema);

@@ -1,48 +1,56 @@
-// server/controllers/recordController.js
 const Record = require('../models/Record');
 
- exports.createRecord = async (req, res) => {
+// CREATE a new record (with checks for unique fields)
+exports.createRecord = async (req, res) => {
   try {
-    // 1) Check if name is already taken
-    const existingName = await Record.findOne({ name: req.body.name });
-    if (existingName) {
-      return res.status(400).json({ message: "Name is already in use." });
+    // 1) Check if customerName is already used by a non-deleted record (if you want unique by name)
+    const existingCustomer = await Record.findOne({
+      customerName: req.body.customerName,
+      isDeleted: false
+    });
+    if (existingCustomer) {
+      return res.status(400).json({ message: "Customer Name is already in use." });
     }
 
-    // 2) Check if email is already taken
-    const existingEmail = await Record.findOne({ email: req.body.email });
+    // 2) Check if email is already taken by a non-deleted record
+    const existingEmail = await Record.findOne({
+      email: req.body.email,
+      isDeleted: false
+    });
     if (existingEmail) {
       return res.status(400).json({ message: "Email is already in use." });
     }
 
-    // If both checks pass, create the new record
+    // If checks pass, create the new record
     const record = new Record(req.body);
     await record.save();
+
     res.status(201).json(record);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// GET all records
+// GET all records (only those not deleted)
 exports.getAllRecords = async (req, res) => {
   try {
-    const records = await Record.find({});
+    const records = await Record.find({ isDeleted: false });
     res.json(records);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// SEARCH records by any combination of fields
+// SEARCH records by any combination of fields (also only return not-deleted)
 exports.searchRecords = async (req, res) => {
   try {
-    const query = {};
-    ['name', 'companyName', 'email', 'phone'].forEach(field => {
+    const query = { isDeleted: false }; 
+    ['customerName', 'userName', 'designation', 'email', 'phoneNumber', 'city', 'segmentation'].forEach(field => {
       if (req.query[field]) {
         query[field] = req.query[field];
       }
     });
+
     const records = await Record.find(query);
     res.json(records);
   } catch (err) {
@@ -50,22 +58,24 @@ exports.searchRecords = async (req, res) => {
   }
 };
 
-// UPDATE record (also check unique name and unique email)
+// UPDATE record (check unique customerName and unique email among non-deleted docs)
 exports.updateRecord = async (req, res) => {
   try {
-    // 1) Check if name is already taken by another record
-    const existingName = await Record.findOne({
-      name: req.body.name,
-      _id: { $ne: req.params.id }   
+    // Check if the new customerName is already used by a different record
+    const existingCustomer = await Record.findOne({
+      customerName: req.body.customerName,
+      _id: { $ne: req.params.id },
+      isDeleted: false
     });
-    if (existingName) {
-      return res.status(400).json({ message: "Name is already in use." });
+    if (existingCustomer) {
+      return res.status(400).json({ message: "Customer Name is already in use." });
     }
 
-    // 2) Check if email is already taken by another record
+    // Check if new email is already used by a different record
     const existingEmail = await Record.findOne({
       email: req.body.email,
-      _id: { $ne: req.params.id }
+      _id: { $ne: req.params.id },
+      isDeleted: false
     });
     if (existingEmail) {
       return res.status(400).json({ message: "Email is already in use." });
@@ -77,30 +87,35 @@ exports.updateRecord = async (req, res) => {
       { new: true }
     );
     if (!record) return res.status(404).json({ message: 'Record not found' });
+
     res.json(record);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE single record
+// SOFT DELETE single record (instead of removing from DB, set isDeleted=true)
 exports.deleteRecord = async (req, res) => {
   try {
-    const record = await Record.findByIdAndDelete(req.params.id);
+    const record = await Record.findById(req.params.id);
     if (!record) {
       return res.status(404).json({ message: 'Record not found' });
     }
-    return res.json({ message: 'Record deleted successfully' });
+
+    record.isDeleted = true;
+    await record.save();
+
+    return res.json({ message: 'Record soft-deleted successfully' });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE ALL records
+// SOFT DELETE ALL records
 exports.deleteAllRecords = async (req, res) => {
   try {
-    await Record.deleteMany({});
-    return res.json({ message: 'All records deleted successfully' });
+    await Record.updateMany({}, { $set: { isDeleted: true } });
+    return res.json({ message: 'All records soft-deleted successfully' });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
