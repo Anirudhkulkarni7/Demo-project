@@ -118,7 +118,7 @@ export default function LoginPage({ onLogin }) {
             gutterBottom
             sx={{ color: '#3f51b5', fontWeight: 'bold', marginBottom: '1rem' }}
           >
-            Login
+            Contact Entry 
           </Typography>
 
           <TextField

@@ -9,9 +9,10 @@ export default function NavBar({ onLogout }) {
       position="static"
       elevation={6}
       sx={{
+        height: '54px',
         background: 'rgba(255,255,255,0.85)',
         backdropFilter: 'blur(10px)',
-        marginBottom: '2rem'
+        marginBottom: '1.6rem'
       }}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -21,7 +22,7 @@ export default function NavBar({ onLogout }) {
           transition={{ duration: 0.5 }}
         >
           <Typography
-            variant="h5"
+            variant="h6"
             component={Link}
             to="/user"
             sx={{

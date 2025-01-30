@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const recordSchema = new mongoose.Schema({
-  customerName: {
+  companyName: { // Renamed from customerName
     type: String,
     required: true
   },
@@ -9,7 +9,7 @@ const recordSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  designation: {
+  designation: { 
     type: String,
     required: true
   },
@@ -41,6 +41,5 @@ const recordSchema = new mongoose.Schema({
   }
 },
 { versionKey: false });
-
 
 module.exports = mongoose.model('Record', recordSchema);
