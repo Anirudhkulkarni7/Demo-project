@@ -35,21 +35,100 @@ import BusinessIcon from '@mui/icons-material/Business';
 import WorkIcon from '@mui/icons-material/Work';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
-// CHANGED: using a "Map" icon for city
 import MapIcon from '@mui/icons-material/Map';
 import ListIcon from '@mui/icons-material/List';
 
 import Autocomplete from '@mui/material/Autocomplete';
 
+/** ICONS MAPPING **/
 const iconMapping = {
   customerName: <PersonIcon />,
   userName: <BusinessIcon />,
   designation: <WorkIcon />,
-  // CHANGED: city icon now MapIcon
   city: <MapIcon />,
   segmentation: <ListIcon />,
   email: <EmailIcon />,
   phoneNumber: <PhoneIcon />
+};
+
+const cellScrollStyle = {
+  whiteSpace: 'nowrap',
+  overflowX: 'auto',
+  '&::-webkit-scrollbar': {
+    height: '3px' 
+  },
+  '&::-webkit-scrollbar-track': {
+    background: '#f1f1f1'
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: '#888',
+    borderRadius: '2px'
+  }
+};
+
+/** 
+ * Updated column widths:
+ * - ID: 70
+ * - Customer Name: 140 (reduced from 160)
+ * - User Name: 130
+ * - Designation: 130
+ * - City: 100
+ * - Seg: 110
+ * - Email: 150 (reduced from 200)
+ * - Phone No: 130
+ * 
+ * Actions column is sticky with a small width (~70).
+ */
+const columnStyles = {
+  actions: {
+    position: 'sticky',
+    left: 0,
+    background: 'white',
+    zIndex: 3,
+    minWidth: 70,
+    textAlign: 'center'
+  },
+  uniqueId: {
+    width: 40,
+    maxWidth: 50,
+    ...cellScrollStyle
+  },
+  customerName: {
+    width: 110, // Reduced width
+    maxWidth: 110, // Reduced maxWidth
+    ...cellScrollStyle
+  },
+  userName: {
+    width: 130,
+    maxWidth: 130,
+    ...cellScrollStyle
+  },
+  designation: {
+    width: 130,
+    maxWidth: 130,
+    ...cellScrollStyle
+  },
+  city: {
+    width: 40,
+    maxWidth: 100,
+    ...cellScrollStyle
+  },
+  segmentation: {
+    width: 60,
+    maxWidth: 70,
+    ...cellScrollStyle
+  },
+  email: {
+  width: 50,
+  maxWidth: 120,
+   ...cellScrollStyle
+},
+
+  phoneNumber: {
+    width: 130,
+    maxWidth: 130,
+    ...cellScrollStyle
+  }
 };
 
 export default function UserDashboard({ role }) {
@@ -72,20 +151,13 @@ export default function UserDashboard({ role }) {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 9;
+  const rowsPerPage = 10;
 
   // Delete row dialog
   const [deleteRowOpen, setDeleteRowOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
-  const handleDeleteRowClick = (record) => {
-    setRecordToDelete(record);
-    setDeleteRowOpen(true);
-  };
-  const handleCloseDeleteRow = () => {
-    setDeleteRowOpen(false);
-    setRecordToDelete(null);
-  };
-
+  
+  
   // All records (for autocomplete suggestions)
   const [allRecords, setAllRecords] = useState([]);
   const [customerNameSuggestions, setCustomerNameSuggestions] = useState([]);
@@ -135,7 +207,7 @@ export default function UserDashboard({ role }) {
     // Basic validations
     const nameRegex = /^[A-Za-z\s]+$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/; // final format after dashes
+    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/; // final format with dashes
 
     if (!formData.customerName || !nameRegex.test(formData.customerName)) {
       setModal({ open: true, message: 'Invalid Customer Name (letters/spaces only).', severity: 'error' });
@@ -273,6 +345,16 @@ export default function UserDashboard({ role }) {
     setModal({ open: true, message: 'You can now edit the selected record.', severity: 'info' });
   };
 
+  const handleDeleteRowClick = (record) => {
+    setRecordToDelete(record);
+    setDeleteRowOpen(true);
+  };
+
+  const handleCloseDeleteRow = () => {
+    setDeleteRowOpen(false);
+    setRecordToDelete(null);
+  };
+
   const handleConfirmDeleteRow = async () => {
     if (recordToDelete) {
       try {
@@ -298,12 +380,12 @@ export default function UserDashboard({ role }) {
       return;
     }
     const dataForExcel = searchResults.map((record) => ({
-      'Unique ID': record.uniqueId,
+      'ID': record.uniqueId,
       'Customer Name': record.customerName,
       'User Name': record.userName,
       'Designation': record.designation,
       'City': record.city,
-      'Segmentation': record.segmentation,
+      'Seg': record.segmentation, // Updated header
       'Email': record.email,
       'Phone Number': record.phoneNumber
     }));
@@ -357,12 +439,12 @@ export default function UserDashboard({ role }) {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden', marginLeft: '-20px', height: 'auto' }}>
-      <Box display="flex" gap="1%" sx={{ height: '100%' }}>
+    <Container maxWidth="xl" sx={{ marginTop: '-1rem', overflow: 'hidden', marginLeft: '-14px', height: 'auto' }}>
+      <Box display="flex" gap="0%" sx={{ height: '100%' }}>
         {/* Left Panel: Contacts Entry Form */}
-        <Box width="22%" sx={{ height: '100%', pr: 1 }}>
+        <Box width="30vw" sx={{ height: '100%', pr: 0.2}}>
           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <Paper elevation={6} sx={{ p: 1, background: 'rgba(255,255,255,0.85)' }}>
+            <Paper elevation={6} sx={{ p: 1, background: 'rgba(255,255,255,0.8)' }}>
               {/* Customer Name Autocomplete */}
               <Autocomplete
                 freeSolo
@@ -565,7 +647,7 @@ export default function UserDashboard({ role }) {
                 )}
               </Box>
 
-              <Box mt={1}>
+              <Box mt={3.7}>
                 <Typography variant="caption" color="error">
                   All fields are required to save a record.
                 </Typography>
@@ -575,16 +657,17 @@ export default function UserDashboard({ role }) {
         </Box>
 
         {/* Right Panel: Search Results Table */}
-        <Box width="70%" sx={{ marginLeft: '0', marginRight: '0' }}>
+        <Box sx={{ marginLeft: '30px', width: 'calc(100% - 60px)', maxWidth: '90vw' }}>
           {searchResults.length > 0 && (
             <Paper
               elevation={6}
               sx={{
-                marginRight: '-12%',
+                // marginLeft: '-1%',
+                marginRight: '-1%',
                 marginTop: '-1rem',
-                padding: '0.2rem',
+                padding: '0.1rem',
                 borderRadius: '0px',
-                border: '2px solid rgba(0, 0, 0, 0.1)'
+                border: '1px solid rgba(0, 0, 0, 0.1)'
               }}
             >
               <Box
@@ -594,7 +677,7 @@ export default function UserDashboard({ role }) {
                 mb={1}
                 sx={{ position: 'sticky', top: 0, background: 'inherit', zIndex: 1, pb: 1 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 'bold', marginTop: '8px' ,marginLeft: '10px'}}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', marginTop: '8px', marginLeft: '10px' }}>
                   Search Results
                 </Typography>
                 <Box>
@@ -628,74 +711,56 @@ export default function UserDashboard({ role }) {
                 </Box>
               </Box>
 
-              <TableContainer sx={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'auto' }}>
+              <TableContainer sx={{ maxHeight: '100vh',maxWidth:'100%',overflowY: 'auto', overflowX: 'hidden' , }}>
                 <Table
                   size="small"
                   stickyHeader
                   sx={{
-                    // REDUCED ROW HEIGHT
                     '& .MuiTableCell-root': {
-                      padding: '3px 7px', // reduce cell padding
-                      fontSize: '0.85rem'
+                      padding: '4px 8px', // reduce cell padding
+                      fontSize: '0.85rem',
+                      marginLeft: '20px',
                     }
                   }}
                 >
                   <TableHead>
                     <TableRow>
-                      {/* Single Actions Column (sticky) */}
-                      <TableCell
-                        sx={{
-                          position: 'sticky',
-                          left: 0,
-                          background: 'white',
-                          zIndex: 3,
-                          minWidth: '70px',
-                          textAlign: 'center'
-                        }}
-                      >
+                      {/* Actions (sticky) */}
+                      <TableCell sx={columnStyles.actions}>
                         <strong>Actions</strong>
                       </TableCell>
-                      <TableCell>
-                        <strong>Unique ID</strong>
+                      <TableCell sx={columnStyles.uniqueId}>
+                        <strong>ID</strong> {/* Changed from Unique ID to ID */}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={columnStyles.customerName}>
                         <strong>Customer Name</strong>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={columnStyles.userName}>
                         <strong>User Name</strong>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={columnStyles.designation}>
                         <strong>Designation</strong>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={columnStyles.city}>
                         <strong>City</strong>
                       </TableCell>
-                      <TableCell>
-                        <strong>Segmentation</strong>
+                      <TableCell sx={columnStyles.segmentation}>
+                        <strong>Seg.</strong> {/* Changed from Segmentation to Seg */}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={columnStyles.email}>
                         <strong>Email</strong>
                       </TableCell>
-                      <TableCell>
-                        <strong>Phone No</strong>
+                      <TableCell sx={columnStyles.phoneNumber}>
+                        <strong>Phone Number</strong>
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {currentTableData.map((record) => (
                       <TableRow key={record._id}>
-                        {/* Combined Actions Cell */}
-                        <TableCell
-                          sx={{
-                            position: 'sticky',
-                            left: 0,
-                            background: 'white',
-                            zIndex: 1,
-                            minWidth: '70px',
-                            textAlign: 'center'
-                          }}
-                        >
-                          <IconButton size="small" onClick={() => handleEdit(record)} sx={{ mr: 1 }}>
+                        {/* Actions */}
+                        <TableCell sx={{ ...columnStyles.actions, zIndex: 5 }}>
+                          <IconButton size="small" onClick={() => handleEdit(record)}>
                             <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
                               <EditIcon fontSize="small" />
                             </motion.div>
@@ -707,14 +772,14 @@ export default function UserDashboard({ role }) {
                           </IconButton>
                         </TableCell>
 
-                        <TableCell>{record.uniqueId}</TableCell>
-                        <TableCell>{record.customerName}</TableCell>
-                        <TableCell>{record.userName}</TableCell>
-                        <TableCell>{record.designation}</TableCell>
-                        <TableCell>{record.city}</TableCell>
-                        <TableCell>{record.segmentation}</TableCell>
-                        <TableCell>{record.email}</TableCell>
-                        <TableCell>{record.phoneNumber}</TableCell>
+                        <TableCell sx={columnStyles.uniqueId}>{record.uniqueId}</TableCell>
+                        <TableCell sx={columnStyles.customerName}>{record.customerName}</TableCell>
+                        <TableCell sx={columnStyles.userName}>{record.userName}</TableCell>
+                        <TableCell sx={columnStyles.designation}>{record.designation}</TableCell>
+                        <TableCell sx={columnStyles.city}>{record.city}</TableCell>
+                        <TableCell sx={columnStyles.segmentation}>{record.segmentation}</TableCell>
+                        <TableCell sx={columnStyles.email}>{record.email}</TableCell>
+                        <TableCell sx={columnStyles.phoneNumber}>{record.phoneNumber}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -735,7 +800,7 @@ export default function UserDashboard({ role }) {
         </Box>
       </Box>
 
-      {/* Popup dialog for messages */}
+      {/* Modal dialog for general messages */}
       <Dialog open={modal.open} onClose={handleCloseModal} maxWidth="xs">
         <DialogTitle>
           {modal.severity.charAt(0).toUpperCase() + modal.severity.slice(1)}

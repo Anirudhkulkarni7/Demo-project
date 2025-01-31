@@ -1,5 +1,8 @@
 const Record = require('../models/Record');
- 
+
+/**
+ * Utility function to get the next unique ID.
+ */
 async function getNextUniqueId() {
   // Find the record with the highest uniqueId so far
   const lastRecord = await Record.findOne({})
@@ -12,7 +15,9 @@ async function getNextUniqueId() {
   return lastRecord.uniqueId + 1;
 }
 
-// CREATE a new record
+/**
+ * CREATE a new record
+ */
 exports.createRecord = async (req, res) => {
   try {
     const { customerName, userName, email } = req.body;
@@ -55,7 +60,9 @@ exports.createRecord = async (req, res) => {
   }
 };
 
-// GET all records (only those not deleted)
+/**
+ * GET all records (only those not deleted)
+ */
 exports.getAllRecords = async (req, res) => {
   try {
     const records = await Record.find({ isDeleted: false });
@@ -65,8 +72,10 @@ exports.getAllRecords = async (req, res) => {
   }
 };
 
-// SEARCH records by any combination of fields (return not-deleted).
-// But for customerName and userName, do partial matches via $regex.
+/**
+ * SEARCH records by any combination of fields (return not-deleted).
+ * Partial matches for customerName and userName via $regex.
+ */
 exports.searchRecords = async (req, res) => {
   try {
     const query = { isDeleted: false };
@@ -94,35 +103,47 @@ exports.searchRecords = async (req, res) => {
   }
 };
 
-// UPDATE record (check unique constraints)
+/**
+ * UPDATE record (check unique constraints for customerName + userName and email)
+ */
 exports.updateRecord = async (req, res) => {
   try {
-    // Check if the new customerName is already used by a different record
-    const existingCustomer = await Record.findOne({
-      customerName: req.body.customerName,
-      _id: { $ne: req.params.id },
+    const { customerName, userName, email } = req.body;
+    const recordId = req.params.id;
+
+    // Ensure that the combination of customerName and userName is unique, excluding current record
+    const existingCombination = await Record.findOne({
+      customerName: customerName,
+      userName: userName,
+      _id: { $ne: recordId },
       isDeleted: false
     });
-    if (existingCustomer) {
-      return res.status(400).json({ message: 'Customer Name is already in use.' });
+
+    if (existingCombination) {
+      return res.status(400).json({ message: 'This customer name and user name combination already exists.' });
     }
 
-    // Check if new email is already used by a different record
+    // Ensure uniqueness for email, excluding current record
     const existingEmail = await Record.findOne({
-      email: req.body.email,
-      _id: { $ne: req.params.id },
+      email: email,
+      _id: { $ne: recordId },
       isDeleted: false
     });
+
     if (existingEmail) {
       return res.status(400).json({ message: 'Email is already in use.' });
     }
 
+    // Find and update the record
     const record = await Record.findByIdAndUpdate(
-      req.params.id,
+      recordId,
       req.body,
       { new: true }
     );
-    if (!record) return res.status(404).json({ message: 'Record not found' });
+
+    if (!record) {
+      return res.status(404).json({ message: 'Record not found' });
+    }
 
     res.json(record);
   } catch (err) {
@@ -130,7 +151,9 @@ exports.updateRecord = async (req, res) => {
   }
 };
 
-// SOFT DELETE single record
+/**
+ * SOFT DELETE single record
+ */
 exports.deleteRecord = async (req, res) => {
   try {
     const record = await Record.findById(req.params.id);
@@ -147,7 +170,9 @@ exports.deleteRecord = async (req, res) => {
   }
 };
 
-// SOFT DELETE ALL records
+/**
+ * SOFT DELETE ALL records
+ */
 exports.deleteAllRecords = async (req, res) => {
   try {
     await Record.updateMany({}, { $set: { isDeleted: true } });
@@ -158,14 +183,14 @@ exports.deleteAllRecords = async (req, res) => {
 };
 
 /**
- * OPTIONAL: Provide suggestions for companyName (customerName) as user types
+ * OPTIONAL: Provide suggestions for customerName as user types
  * e.g., GET /api/records/suggestions/customerName?q=sha
  */
 exports.suggestCustomerNames = async (req, res) => {
   try {
     const searchTerm = req.query.q || '';
     if (!searchTerm) {
-      // If empty query, return empty or entire distinct list, your call
+      // If empty query, return empty array or distinct list as per your requirement
       return res.json([]);
     }
 

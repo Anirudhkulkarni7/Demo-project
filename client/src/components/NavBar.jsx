@@ -12,7 +12,7 @@ export default function NavBar({ onLogout }) {
         height: '54px',
         background: 'rgba(255,255,255,0.85)',
         backdropFilter: 'blur(10px)',
-        marginBottom: '1.6rem'
+        marginBottom: '1.7rem'
       }}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>

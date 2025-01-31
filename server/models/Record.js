@@ -1,45 +1,18 @@
 const mongoose = require('mongoose');
 
-const recordSchema = new mongoose.Schema({
-  companyName: { // Renamed from customerName
-    type: String,
-    required: true
-  },
-  userName: {
-    type: String,
-    required: true
-  },
-  designation: { 
-    type: String,
-    required: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  phoneNumber: {
-    type: String,
-    required: true
-  },
-  city: {
-    type: String,
-    required: true
-  },
-  segmentation: {
-    type: String,
-    enum: ['LE', 'MM', 'SB', 'ACQ'],
-    required: true
-  },
-  uniqueId: {
-    type: Number,
-    unique: true
-  },
-  isDeleted: {
-    type: Boolean,
-    default: false
-  }
-},
-{ versionKey: false });
+const RecordSchema = new mongoose.Schema({
+  uniqueId: { type: Number, unique: true },
+  customerName: { type: String, required: true }, // Changed from companyName
+  userName: { type: String, required: true },
+  designation: { type: String, required: true },
+  city: { type: String, required: true },
+  segmentation: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  phoneNumber: { type: String, required: true },
+  isDeleted: { type: Boolean, default: false }
+});
 
-module.exports = mongoose.model('Record', recordSchema);
+// Compound index for customerName and userName
+RecordSchema.index({ customerName: 1, userName: 1 }, { unique: true });
+
+module.exports = mongoose.model('Record', RecordSchema);
